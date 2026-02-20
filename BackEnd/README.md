@@ -29,3 +29,17 @@
 ```python
 ~/S_O_P_KR-KP/BackEnd> pip install -r requirements.txt
 ```
+
+## 4. Настройка окружения для работы с БД
+
+Копируем файл .env.example, переименовывая его в .env и заполняем свои данные для подключения к БД.
+
+```
+~/S_O_P_KR-KP/BackEnd> cp .env.example .env
+```
+
+## 5. Запуск сервера
+
+```
+~/S_O_P_KR-KP/BackEnd> uvicorn app.main:app --reload
+```
