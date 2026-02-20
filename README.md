@@ -26,6 +26,15 @@ React
 
 ```
 Python
-Fast API
 PostgreSQL
+```
+
+Библиотеки:
+
+```
+Uvicorn
+Fast API
+pg8000
+python-dotenv
+pydantic
 ```
