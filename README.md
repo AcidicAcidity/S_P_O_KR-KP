@@ -13,7 +13,7 @@
 
 # Фреймворки и языки :
 
-# **FrontEnd**
+## **FrontEnd**
 
 ```
 HTML
@@ -22,7 +22,7 @@ JavaScript
 React
 ```
 
-# **BackEnd**
+## **BackEnd**
 
 ```
 Python
