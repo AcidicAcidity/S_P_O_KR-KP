@@ -10,3 +10,22 @@
 ```
 
 Добавлена ветка main
+
+# Фреймворки и языки :
+
+# **FrontEnd**
+
+```
+HTML
+CSS
+JavaScript
+React
+```
+
+# **BackEnd**
+
+```
+Python
+Fast API
+PostgreSQL
+```
