@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import date, datetime
 
-# ----- МОДЕЛИ ДЛЯ ФИЛЬМОВ -----
+# ----- ФИЛЬМЫ -----
 class MovieBase(BaseModel):
     title: str
     description: Optional[str] = None
@@ -11,21 +11,19 @@ class MovieBase(BaseModel):
     release_date: Optional[date] = None
     rating: Optional[float] = Field(None, ge=0, le=10)
     poster_url: Optional[str] = None
-
-class MovieCreate(MovieBase):
-    pass
+    actors: Optional[str] = None
+    director: Optional[str] = None
+    country: Optional[str] = None
 
 class MovieResponse(MovieBase):
     id: int
-    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
 
-# Для главной страницы (фильм + сеансы на сегодня)
 class TodaySession(BaseModel):
     session_id: int
-    time: str  # "18:30"
+    time: str
     price: float
     hall_name: str
 
@@ -37,24 +35,52 @@ class MovieCardResponse(BaseModel):
     rating: Optional[float] = None
     today_sessions: List[TodaySession] = []
 
-# ----- МОДЕЛИ ДЛЯ ЗАЛОВ И МЕСТ -----
+# ----- ЗАЛЫ И МЕСТА -----
+class Hall(BaseModel):
+    id: int
+    name: str
+    capacity: int
+    hall_type: str
+
 class Seat(BaseModel):
     id: int
     row_number: int
     seat_number: int
     seat_type: str
-    is_available: bool
 
-class Hall(BaseModel):
+class SeatWithStatus(BaseModel):
     id: int
-    name: str
-    hall_type: str
-    capacity: int
+    row: int
+    seat: int
+    type: str
+    available: bool
 
-# ----- МОДЕЛИ ДЛЯ БИЛЕТОВ -----
+# ----- СЕАНСЫ -----
+class SessionInfo(BaseModel):
+    id: int
+    start_time: datetime
+    price: float
+    available_seats: int
+    hall_id: int
+    hall_name: str
+    hall_type: Optional[str] = None
+    movie_id: Optional[int] = None
+    movie_title: Optional[str] = None
+
+class SessionSeatsResponse(BaseModel):
+    session_id: int
+    movie_title: str
+    start_time: datetime
+    hall_name: str
+    price: float
+    seats_by_row: dict
+    total_seats: int
+    available_seats: int
+
+# ----- БИЛЕТЫ -----
 class TicketPurchase(BaseModel):
     session_id: int
-    seat_id: int
+    seat_ids: List[int]
     customer_name: Optional[str] = None
     customer_email: Optional[str] = None
     customer_phone: Optional[str] = None
@@ -62,12 +88,11 @@ class TicketPurchase(BaseModel):
 class TicketResponse(BaseModel):
     id: int
     session_id: int
-    seat_id: int
-    price: float
+    seat_ids: List[int]
+    total_price: float
     purchase_date: datetime
     status: str
     movie_title: Optional[str] = None
     session_time: Optional[datetime] = None
     hall_name: Optional[str] = None
-    row: int
-    seat: int
+    seats: List[str] = []

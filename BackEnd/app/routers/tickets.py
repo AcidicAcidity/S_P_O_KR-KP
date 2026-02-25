@@ -8,70 +8,74 @@ router = APIRouter(prefix="/tickets", tags=["Билеты"])
 logger = logging.getLogger(__name__)
 
 @router.post("/purchase", response_model=TicketResponse)
-async def purchase_ticket(purchase: TicketPurchase):
+async def purchase_tickets(purchase: TicketPurchase):
     """
-    Купить билет
+    Купить билеты (несколько мест сразу)
     """
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Ошибка подключения к БД")
 
     try:
-        # Начинаем транзакцию
         conn.autocommit = False
         cursor = conn.cursor()
 
-        # Проверяем, свободно ли место
-        cursor.execute("""
-            SELECT id FROM tickets
-            WHERE session_id = %s AND seat_id = %s
-            AND status != 'Возврат'
-        """, (purchase.session_id, purchase.seat_id))
+        session_id = purchase.session_id
+        seat_ids = purchase.seat_ids
 
-        if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="Это место уже занято")
+        # Проверяем, что все места свободны
+        placeholders = ','.join(['%s'] * len(seat_ids))
+        cursor.execute(f"""
+            SELECT seat_id FROM tickets
+            WHERE session_id = %s
+                AND seat_id IN ({placeholders})
+                AND status != 'Возврат'
+        """, [session_id] + seat_ids)
 
-        # Получаем цену и проверяем наличие мест
-        cursor.execute("""
-            SELECT price, available_seats, movie_id
-            FROM sessions WHERE id = %s
-        """, (purchase.session_id,))
+        occupied = cursor.fetchall()
+        if occupied:
+            occupied_ids = [o[0] for o in occupied]
+            raise HTTPException(
+                status_code=400,
+                detail=f"Места {occupied_ids} уже заняты"
+            )
 
+        # Получаем цену сеанса
+        cursor.execute("SELECT price, movie_id FROM sessions WHERE id = %s", (session_id,))
         session = cursor.fetchone()
         if not session:
             raise HTTPException(status_code=404, detail="Сеанс не найден")
 
-        if session[1] <= 0:
-            raise HTTPException(status_code=400, detail="Нет свободных мест")
+        price = float(session[0])
 
-        # Создаем билет
-        cursor.execute("""
-            INSERT INTO tickets (session_id, seat_id, price, status)
-            VALUES (%s, %s, %s, 'Куплен')
-            RETURNING id, purchase_date
-        """, (purchase.session_id, purchase.seat_id, float(session[0])))
+        # Создаем билеты
+        tickets_created = []
+        for seat_id in seat_ids:
+            cursor.execute("""
+                INSERT INTO tickets (session_id, seat_id, price, status)
+                VALUES (%s, %s, %s, 'Куплен')
+                RETURNING id
+            """, (session_id, seat_id, price))
+            ticket_id = cursor.fetchone()[0]
+            tickets_created.append(ticket_id)
 
-        ticket = cursor.fetchone()
-
-        # Обновляем количество мест
+        # Обновляем количество доступных мест
         cursor.execute("""
             UPDATE sessions
-            SET available_seats = available_seats - 1
+            SET available_seats = available_seats - %s
             WHERE id = %s
-        """, (purchase.session_id,))
+        """, (len(seat_ids), session_id))
 
-        # Получаем полную информацию о билете
-        cursor.execute("""
+        # Получаем информацию о купленных билетах
+        placeholders = ','.join(['%s'] * len(tickets_created))
+        cursor.execute(f"""
             SELECT
                 t.id,
-                t.session_id,
                 t.seat_id,
-                t.price,
-                t.purchase_date,
-                t.status,
-                m.title as movie_title,
-                s.start_time as session_time,
-                h.name as hall_name,
+                s.price,
+                s.start_time,
+                m.title,
+                h.name,
                 seats.row_number,
                 seats.seat_number
             FROM tickets t
@@ -79,25 +83,27 @@ async def purchase_ticket(purchase: TicketPurchase):
             JOIN movies m ON s.movie_id = m.id
             JOIN halls h ON s.hall_id = h.id
             JOIN seats ON t.seat_id = seats.id
-            WHERE t.id = %s
-        """, (ticket[0],))
+            WHERE t.id IN ({placeholders})
+        """, tickets_created)
 
-        full_ticket = cursor.fetchone()
+        tickets_info = cursor.fetchall()
 
         conn.commit()
 
+        # Формируем ответ
+        seats_list = [f"{t[6]} ряд {t[7]} место" for t in tickets_info]
+
         return TicketResponse(
-            id=full_ticket[0],
-            session_id=full_ticket[1],
-            seat_id=full_ticket[2],
-            price=float(full_ticket[3]),
-            purchase_date=full_ticket[4],
-            status=full_ticket[5],
-            movie_title=full_ticket[6],
-            session_time=full_ticket[7],
-            hall_name=full_ticket[8],
-            row=full_ticket[9],
-            seat=full_ticket[10]
+            id=tickets_created[0] if len(tickets_created) == 1 else tickets_created,
+            session_id=session_id,
+            seat_ids=seat_ids,
+            total_price=price * len(seat_ids),
+            purchase_date=datetime.now(),
+            status="Куплен",
+            movie_title=tickets_info[0][4],
+            session_time=tickets_info[0][3],
+            hall_name=tickets_info[0][5],
+            seats=seats_list
         )
 
     except HTTPException:

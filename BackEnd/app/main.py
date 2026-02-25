@@ -1,33 +1,39 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import movies, sessions, tickets
+from app.routers import (
+    movies_router,
+    sessions_router,
+    tickets_router,
+    halls_router,
+    auth_router  # 👈 Добавили импорт
+)
 import logging
 
-# Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Создание приложения
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     debug=settings.DEBUG
 )
 
-# Настройка CORS (чтобы фронтенд мог обращаться)
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # В продакшене заменить на конкретные домены
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Подключаем роутеры
-app.include_router(movies.router)
-app.include_router(sessions.router)
-app.include_router(tickets.router)
+app.include_router(movies_router)
+app.include_router(sessions_router)
+app.include_router(tickets_router)
+app.include_router(halls_router)
+app.include_router(auth_router)  # 👈 Добавили роутер
 
 @app.get("/")
 async def root():
@@ -35,16 +41,24 @@ async def root():
         "message": "🍿 Cinema API is running!",
         "docs": "/docs",
         "endpoints": [
-            "/movies/now-playing",
-            "/movies/{id}",
-            "/sessions/{id}/seats",
-            "/tickets/purchase"
+            "GET    /movies",
+            "GET    /movies/now-playing",
+            "GET    /movies/{id}",
+            "GET    /movies/{id}/sessions?date=YYYY-MM-DD",
+            "GET    /sessions",
+            "GET    /sessions/{id}",
+            "GET    /sessions/{id}/seats",
+            "POST   /tickets/purchase",
+            "GET    /halls",
+            "GET    /halls/{id}/seats",
+            "POST   /auth/register",      # 👈 Новые
+            "POST   /auth/login",          # 👈 Новые
+            "GET    /auth/me"               # 👈 Новые
         ]
     }
 
 @app.get("/health")
 async def health_check():
-    """Проверка работоспособности"""
     from app.database import get_db_connection
     conn = get_db_connection()
     db_status = "connected" if conn else "disconnected"
