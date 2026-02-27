@@ -4,6 +4,7 @@ from app.models import TicketPurchase, TicketResponse
 import logging
 from datetime import datetime
 
+# СОЗДАЕМ РОУТЕР
 router = APIRouter(prefix="/tickets", tags=["Билеты"])
 logger = logging.getLogger(__name__)
 
@@ -40,22 +41,27 @@ async def purchase_tickets(purchase: TicketPurchase):
                 detail=f"Места {occupied_ids} уже заняты"
             )
 
-        # Получаем цену сеанса
-        cursor.execute("SELECT price, movie_id FROM sessions WHERE id = %s", (session_id,))
+        # Получаем цену и проверяем наличие мест
+        cursor.execute("""
+            SELECT price, available_seats, movie_id, hall_id
+            FROM sessions WHERE id = %s
+        """, (purchase.session_id,))
+
         session = cursor.fetchone()
         if not session:
             raise HTTPException(status_code=404, detail="Сеанс не найден")
 
         price = float(session[0])
 
-        # Создаем билеты
+        # Создаем билеты для каждого места
         tickets_created = []
         for seat_id in seat_ids:
             cursor.execute("""
-                INSERT INTO tickets (session_id, seat_id, price, status)
-                VALUES (%s, %s, %s, 'Куплен')
+                INSERT INTO tickets (session_id, seat_id, price, status, purchase_date)
+                VALUES (%s, %s, %s, 'Куплен', NOW())
                 RETURNING id
-            """, (session_id, seat_id, price))
+            """, (purchase.session_id, seat_id, price))
+            
             ticket_id = cursor.fetchone()[0]
             tickets_created.append(ticket_id)
 
@@ -90,21 +96,26 @@ async def purchase_tickets(purchase: TicketPurchase):
 
         conn.commit()
 
-        # Формируем ответ
-        seats_list = [f"{t[6]} ряд {t[7]} место" for t in tickets_info]
-
-        return TicketResponse(
-            id=tickets_created[0] if len(tickets_created) == 1 else tickets_created,
-            session_id=session_id,
-            seat_ids=seat_ids,
-            total_price=price * len(seat_ids),
-            purchase_date=datetime.now(),
-            status="Куплен",
-            movie_title=tickets_info[0][4],
-            session_time=tickets_info[0][3],
-            hall_name=tickets_info[0][5],
-            seats=seats_list
-        )
+        # Формируем ответ - возвращаем информацию о первом билете
+        first_ticket = tickets_info[0] if tickets_info else None
+        
+        if first_ticket:
+            return TicketResponse(
+                id=tickets_created[0],
+                session_id=session_id,
+                seat_ids=seat_ids,
+                total_price=price * len(seat_ids),
+                purchase_date=datetime.now(),
+                status="Куплен",
+                movie_title=first_ticket[4],
+                session_time=first_ticket[3],
+                hall_name=first_ticket[5],
+                row=first_ticket[6],
+                seat=first_ticket[7],
+                customer_name=purchase.customer_name
+            )
+        else:
+            raise HTTPException(status_code=500, detail="Не удалось создать билеты")
 
     except HTTPException:
         conn.rollback()

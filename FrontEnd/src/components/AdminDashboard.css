@@ -1,0 +1,571 @@
+/* src/components/AdminDashboard.css */
+
+.admin-dashboard {
+  display: flex;
+  min-height: calc(100vh - 80px);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Сайдбар */
+.admin-sidebar {
+  width: 280px;
+  background: rgba(20, 20, 30, 0.95);
+  backdrop-filter: blur(10px);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 30px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-profile {
+  text-align: center;
+  padding: 0 20px 30px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.admin-avatar {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 15px;
+  background: linear-gradient(135deg, #7b2cff, #c62828);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+}
+
+.admin-profile h3 {
+  margin-bottom: 5px;
+  color: white;
+}
+
+.admin-profile p {
+  color: #aaa;
+  font-size: 14px;
+}
+
+.admin-nav {
+  flex: 1;
+  padding: 30px 0;
+}
+
+.admin-nav button {
+  width: 100%;
+  padding: 15px 25px;
+  background: none;
+  border: none;
+  color: #aaa;
+  text-align: left;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-left: 3px solid transparent;
+}
+
+.admin-nav button:hover {
+  background: rgba(123, 44, 255, 0.1);
+  color: white;
+}
+
+.admin-nav button.active {
+  background: rgba(123, 44, 255, 0.2);
+  color: white;
+  border-left-color: #7b2cff;
+}
+
+.admin-logout {
+  margin: 20px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 30px;
+  color: #ff6b6b;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.admin-logout:hover {
+  background: #ff6b6b;
+  color: white;
+  border-color: #ff6b6b;
+}
+
+/* Основной контент */
+.admin-content {
+  flex: 1;
+  padding: 30px;
+  overflow-y: auto;
+}
+
+.admin-tab {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.tab-header h2 {
+  font-size: 24px;
+  color: white;
+}
+
+.add-btn {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #7b2cff, #c62828);
+  border: none;
+  border-radius: 30px;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.add-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(123, 44, 255, 0.4);
+}
+
+/* Таблица */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th {
+  text-align: left;
+  padding: 15px;
+  color: #aaa;
+  font-weight: 400;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.admin-table td {
+  padding: 15px;
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.admin-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.edit-btn, .delete-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.edit-btn {
+  color: #4caf50;
+  margin-right: 10px;
+}
+
+.edit-btn:hover {
+  background: rgba(76, 175, 80, 0.2);
+}
+
+.delete-btn {
+  color: #f44336;
+}
+
+.delete-btn:hover {
+  background: rgba(244, 67, 54, 0.2);
+}
+
+.coming-soon {
+  text-align: center;
+  color: #aaa;
+  font-size: 18px;
+  padding: 50px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 15px;
+}
+
+/* Стили для подсказки админа в модалке */
+.admin-hint {
+  margin-top: 20px;
+  padding: 10px;
+  background: rgba(123, 44, 255, 0.1);
+  border-radius: 10px;
+  font-size: 13px;
+  color: #aaa;
+  text-align: center;
+}
+
+.admin-hint strong {
+  color: #ffd700;
+}
+
+/* Добавь в конец файла AdminDashboard.css */
+
+/* Модальное окно */
+.admin-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.admin-modal {
+  background: rgba(20, 20, 30, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 30px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.admin-modal h3 {
+  margin-bottom: 20px;
+  color: white;
+  font-size: 24px;
+}
+
+.admin-modal .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.admin-modal input,
+.admin-modal select,
+.admin-modal textarea {
+  width: 100%;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: white;
+  font-size: 14px;
+}
+
+.admin-modal input:focus,
+.admin-modal select:focus,
+.admin-modal textarea:focus {
+  border-color: #7b2cff;
+  outline: none;
+}
+
+.admin-modal .full-width {
+  grid-column: span 2;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.modal-actions button {
+  padding: 12px 24px;
+  border-radius: 30px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.modal-actions button[type="button"] {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.modal-actions button[type="submit"] {
+  background: linear-gradient(135deg, #7b2cff, #c62828);
+  color: white;
+}
+
+.modal-actions button:hover {
+  transform: translateY(-2px);
+}
+
+/* Миниатюра постера */
+.admin-thumbnail {
+  width: 50px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+/* Статус билета */
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.active {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.status-badge.refunded {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+}
+
+/* Добавь в конец файла */
+
+/* Стили для пустого состояния */
+.admin-empty {
+  text-align: center;
+  padding: 50px;
+  color: #aaa;
+  font-size: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 10px;
+}
+
+/* Кнопка обновления */
+.refresh-btn {
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 30px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.refresh-btn:hover {
+  background: rgba(123, 44, 255, 0.3);
+  border-color: #7b2cff;
+}
+
+/* Строка с возвращенным билетом */
+.refunded-row {
+  opacity: 0.6;
+  background: rgba(255, 0, 0, 0.05);
+}
+
+/* Кнопка возврата */
+.refund-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 5px;
+  transition: all 0.3s ease;
+  color: #ffa500;
+}
+
+.refund-btn:hover:not(:disabled) {
+  background: rgba(255, 165, 0, 0.2);
+  transform: scale(1.1);
+}
+
+.refund-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Статус билета */
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.active {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.status-badge.refunded {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+}
+
+/* Формы в модальном окне */
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  color: #aaa;
+  font-size: 14px;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #7b2cff;
+  outline: none;
+}
+
+/* Добавь в конец файла */
+
+.admin-success {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: rgba(76, 175, 80, 0.2);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  border-radius: 10px;
+  color: #4caf50;
+  text-align: center;
+  font-weight: 500;
+  animation: fadeInOut 3s ease;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(-10px); }
+  10% { opacity: 1; transform: translateY(0); }
+  90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+
+/* Добавь в конец файла */
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.clear-menu-container {
+  position: relative;
+}
+
+.clear-btn {
+  padding: 10px 20px;
+  background: rgba(255, 165, 0, 0.2);
+  border: 1px solid rgba(255, 165, 0, 0.3);
+  border-radius: 30px;
+  color: #ffa500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.clear-btn:hover:not(:disabled) {
+  background: rgba(255, 165, 0, 0.3);
+  border-color: #ffa500;
+}
+
+.clear-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.clear-dropdown {
+  position: absolute;
+  top: 110%;
+  right: 0;
+  background: rgba(30, 30, 40, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 8px;
+  min-width: 220px;
+  z-index: 1000;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.clear-dropdown button {
+  width: 100%;
+  padding: 12px 15px;
+  background: none;
+  border: none;
+  color: white;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.clear-dropdown button:hover:not(.disabled) {
+  background: rgba(123, 44, 255, 0.2);
+}
+
+.clear-dropdown button.danger {
+  color: #ff6b6b;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 5px;
+  padding-top: 12px;
+}
+
+.clear-dropdown button.danger:hover {
+  background: rgba(255, 107, 107, 0.2);
+}
+
+.clear-dropdown button.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.refresh-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: rgba(123, 44, 255, 0.3);
+  border-color: #7b2cff;
+  transform: rotate(180deg);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.refresh-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: #ffffff;
+}

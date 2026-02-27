@@ -2,31 +2,42 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import date, datetime
 
-# ----- ФИЛЬМЫ -----
-class MovieBase(BaseModel):
-    title: str
-    description: Optional[str] = None
-    duration_minutes: int
-    genre: Optional[str] = None
-    release_date: Optional[date] = None
-    rating: Optional[float] = Field(None, ge=0, le=10)
-    poster_url: Optional[str] = None
-    actors: Optional[str] = None
-    director: Optional[str] = None
-    country: Optional[str] = None
-
-class MovieResponse(MovieBase):
-    id: int
-
-    class Config:
-        from_attributes = True
-
+# ----- МОДЕЛИ ДЛЯ СЕАНСОВ -----
 class TodaySession(BaseModel):
     session_id: int
     time: str
     price: float
     hall_name: str
+    session_date: Optional[str] = None
 
+    class Config:
+        from_attributes = True
+
+# ----- МОДЕЛИ ДЛЯ ФИЛЬМОВ -----
+class MovieBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    duration_minutes: Optional[int] = None
+    genre: Optional[str] = None
+    release_date: Optional[date] = None
+    rating: Optional[float] = Field(None, ge=0, le=10)
+    poster_url: Optional[str] = None
+    director: Optional[str] = None
+    actors: Optional[str] = None
+    country: Optional[str] = None
+    trailer_url: Optional[str] = None
+
+class MovieCreate(MovieBase):
+    pass
+
+class MovieResponse(MovieBase):
+    id: int
+    today_sessions: List[TodaySession] = []
+
+    class Config:
+        from_attributes = True
+
+# ----- МОДЕЛИ ДЛЯ КАРТОЧЕК ФИЛЬМОВ -----
 class MovieCardResponse(BaseModel):
     id: int
     title: str
@@ -35,12 +46,15 @@ class MovieCardResponse(BaseModel):
     rating: Optional[float] = None
     today_sessions: List[TodaySession] = []
 
-# ----- ЗАЛЫ И МЕСТА -----
+    class Config:
+        from_attributes = True
+
+# ----- МОДЕЛИ ДЛЯ ЗАЛОВ И МЕСТ -----
 class Hall(BaseModel):
     id: int
     name: str
-    capacity: int
     hall_type: str
+    capacity: int
 
 class Seat(BaseModel):
     id: int
@@ -95,4 +109,30 @@ class TicketResponse(BaseModel):
     movie_title: Optional[str] = None
     session_time: Optional[datetime] = None
     hall_name: Optional[str] = None
-    seats: List[str] = []
+    row: int
+    seat: int
+    customer_name: Optional[str] = None
+
+# ----- МОДЕЛИ ДЛЯ АДМИНКИ -----
+class SessionResponse(BaseModel):
+    id: int
+    movie_id: int
+    hall_id: int
+    start_time: datetime
+    price: float
+    available_seats: int
+    movie_title: Optional[str] = None
+    hall_name: Optional[str] = None
+
+class HallResponse(BaseModel):
+    id: int
+    name: str
+    hall_type: str
+    capacity: int
+
+class UserResponse(BaseModel):
+    id: int
+    full_name: str
+    email: str
+    phone: Optional[str] = None
+    registration_date: datetime

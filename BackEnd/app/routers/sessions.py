@@ -123,10 +123,16 @@ async def get_session_seats(session_id: int):
 
         # Информация о сеансе
         cursor.execute("""
-            SELECT
-                s.price, s.available_seats,
-                h.id, h.name, h.capacity,
-                m.title
+            SELECT 
+                s.id,
+                s.start_time,
+                s.price,
+                s.hall_id,
+                s.available_seats,
+                h.name as hall_name,
+                h.capacity,
+                m.title as movie_title,
+                m.id as movie_id
             FROM sessions s
             JOIN halls h ON s.hall_id = h.id
             JOIN movies m ON s.movie_id = m.id
@@ -137,7 +143,9 @@ async def get_session_seats(session_id: int):
         if not session:
             raise HTTPException(status_code=404, detail="Сеанс не найден")
 
-        # Все места с отметкой о доступности
+        hall_id = session[3]  # Это число, а не дата!
+
+        # Все места в зале с отметкой о доступности
         cursor.execute("""
             SELECT
                 seats.id,
@@ -145,7 +153,7 @@ async def get_session_seats(session_id: int):
                 seats.seat_number,
                 seats.seat_type,
                 CASE
-                    WHEN tickets.id IS NOT NULL THEN false
+                    WHEN tickets.id IS NOT NULL AND tickets.status != 'Возврат' THEN false
                     ELSE true
                 END as is_available
             FROM seats
@@ -154,7 +162,7 @@ async def get_session_seats(session_id: int):
                 AND tickets.status != 'Возврат'
             WHERE seats.hall_id = %s
             ORDER BY seats.row_number, seats.seat_number
-        """, (session_id, session[2]))
+        """, (session_id, hall_id))
 
         seats_data = cursor.fetchall()
 
@@ -172,16 +180,17 @@ async def get_session_seats(session_id: int):
                 "available": seat[4]
             })
 
-        return SessionSeatsResponse(
-            session_id=session_id,
-            movie_title=session[5],
-            start_time=session[0],  # нужно добавить start_time в запрос
-            hall_name=session[3],
-            price=float(session[0]),
-            seats_by_row=seats_by_row,
-            total_seats=session[4],
-            available_seats=session[1]
-        )
+        return {
+            "session_id": session_id,
+            "movie_title": session[7],
+            "movie_id": session[8],
+            "start_time": session[1],
+            "hall_name": session[5],
+            "price": float(session[2]),
+            "seats_by_row": seats_by_row,
+            "total_seats": session[6],
+            "available_seats": session[4]
+        }
 
     except HTTPException:
         raise

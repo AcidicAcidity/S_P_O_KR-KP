@@ -1,44 +1,6 @@
 import { motion } from "framer-motion";
 import MovieCard from "./MovieCard";
 
-const moviesData = [
-  { 
-    id: "1",  // ← ДОБАВЬТЕ id
-    title: "Счастлив, когда ты нет", 
-    year: "2024", 
-    genre: "Драма", 
-    rating: "8.2" 
-  },
-  { 
-    id: "2",  // ← ДОБАВЬТЕ id
-    title: "Уволить Жору", 
-    year: "2024", 
-    genre: "Комедия", 
-    rating: "7.9" 
-  },
-  { 
-    id: "3",  // ← ДОБАВЬТЕ id
-    title: "Фильм 3", 
-    year: "2024", 
-    genre: "Триллер", 
-    rating: "8.0" 
-  },
-  { 
-    id: "4",  // ← ДОБАВЬТЕ id
-    title: "Фильм 4", 
-    year: "2024", 
-    genre: "Боевик", 
-    rating: "7.5" 
-  },
-  { 
-    id: "5",  // ← ДОБАВЬТЕ id
-    title: "Фильм 5", 
-    year: "2024", 
-    genre: "Драма", 
-    rating: "8.3" 
-  },
-];
-
 const container = {
   hidden: {},
   show: {
@@ -53,10 +15,60 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
-function MoviesSection({ search }) {
-  const filteredMovies = moviesData.filter((movie) =>
-    movie.title.toLowerCase().includes(search.toLowerCase())
-  );
+function MoviesSection({ movies, search, loading, error }) {
+  // ОТЛАДКА
+  console.log("🎬 MoviesSection получил:", { 
+    moviesLength: movies?.length,
+    search,
+    loading, 
+    error
+  });
+
+  // Фильтрация происходит прямо при рендере, без useState и useEffect
+  const moviesArray = Array.isArray(movies) ? movies : [];
+  
+  // Нормализуем поисковый запрос - убираем лишние пробелы
+  const normalizedSearch = search ? search.trim() : "";
+  
+  // Если поиск пустой, показываем все фильмы
+  const filteredMovies = normalizedSearch === ""
+    ? moviesArray
+    : moviesArray.filter((movie) =>
+        movie.title?.toLowerCase().includes(normalizedSearch.toLowerCase())
+      );
+
+  console.log("✅ Отфильтровано фильмов:", filteredMovies.length);
+  console.log("🔍 Поиск:", search || "(пусто)");
+
+  // Показываем загрузку
+  if (loading) {
+    return (
+      <section className="movies">
+        <div className="movies-title">
+          <div className="title-line"></div>
+          <h2>Сейчас в кино</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          <p style={{ color: 'white' }}>Загрузка фильмов...</p>
+        </div>
+      </section>
+    );
+  }
+
+  // Показываем ошибку
+  if (error) {
+    return (
+      <section className="movies">
+        <div className="movies-title">
+          <div className="title-line"></div>
+          <h2>Сейчас в кино</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          <p style={{ color: 'red' }}>Ошибка: {error}</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="movies">
@@ -65,18 +77,38 @@ function MoviesSection({ search }) {
         <h2>Сейчас в кино</h2>
       </div>
 
-      <motion.div
-        className="movies-grid"
-        variants={container}
-        initial="hidden"
-        animate="show"
-      >
-        {filteredMovies.map((movie) => (  // Убрали index, используем movie.id
-          <motion.div variants={item} key={movie.id}>  {/* Используем movie.id как key */}
-            <MovieCard {...movie} />
-          </motion.div>
-        ))}
-      </motion.div>
+      {/* Показываем количество фильмов (опционально) */}
+      <div style={{ marginBottom: '20px', color: '#aaa' }}>
+        {search ? `Найдено по запросу "${search}": ` : "Всего фильмов: "}
+        {filteredMovies.length}
+      </div>
+
+      {filteredMovies.length === 0 ? (
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          <p style={{ color: '#aaa' }}>
+            {search 
+              ? `Фильмы по запросу "${search}" не найдены` 
+              : "Нет фильмов для отображения"}
+          </p>
+        </div>
+      ) : (
+        <motion.div
+          className="movies-grid"
+          variants={container}
+          initial="hidden"
+          animate="show"
+          key={normalizedSearch}
+        >
+          {filteredMovies.map((movie) => (
+            <motion.div 
+              variants={item} 
+              key={movie.id}
+            >
+              <MovieCard movie={movie} />
+            </motion.div>
+          ))}
+        </motion.div>
+      )}
     </section>
   );
 }

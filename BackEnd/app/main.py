@@ -1,13 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import (
-    movies_router,
-    sessions_router,
-    tickets_router,
-    halls_router,
-    auth_router  # 👈 Добавили импорт
-)
+from app.routers import movies, sessions, tickets, auth, admin
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -19,42 +13,27 @@ app = FastAPI(
     debug=settings.DEBUG
 )
 
-# CORS
+# CORS - ВАЖНО: должно быть ПЕРЕД подключением роутеров
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Твой фронтенд
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Подключаем роутеры
-app.include_router(movies_router)
-app.include_router(sessions_router)
-app.include_router(tickets_router)
-app.include_router(halls_router)
-app.include_router(auth_router)  # 👈 Добавили роутер
+app.include_router(movies.router)
+app.include_router(sessions.router)
+app.include_router(tickets.router)
+app.include_router(auth.router)
+app.include_router(admin.router)
 
 @app.get("/")
 async def root():
     return {
         "message": "🍿 Cinema API is running!",
-        "docs": "/docs",
-        "endpoints": [
-            "GET    /movies",
-            "GET    /movies/now-playing",
-            "GET    /movies/{id}",
-            "GET    /movies/{id}/sessions?date=YYYY-MM-DD",
-            "GET    /sessions",
-            "GET    /sessions/{id}",
-            "GET    /sessions/{id}/seats",
-            "POST   /tickets/purchase",
-            "GET    /halls",
-            "GET    /halls/{id}/seats",
-            "POST   /auth/register",      # 👈 Новые
-            "POST   /auth/login",          # 👈 Новые
-            "GET    /auth/me"               # 👈 Новые
-        ]
+        "docs": "/docs"
     }
 
 @app.get("/health")
