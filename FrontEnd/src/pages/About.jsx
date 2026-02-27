@@ -24,15 +24,15 @@ function About() {
   const specs = [
     { hall: "Зал 1", screen: "12×6 м", sound: "Dolby 7.1", seats: "96", features: "Обычные кресла" },
     { hall: "Зал 2", screen: "14×7 м", sound: "Dolby Atmos", seats: "96 (90+6 VIP)", features: "VIP ряд с подогревом" },
-    { hall: "Зал 3", screen: "12×6 м", sound: "Dolby 7.1", seats: "40", features: "Игровые приставки" },
+    { hall: "Зал 3", screen: "12×6 м", sound: "Dolby 7.1", seats: "96", features: "Игровые приставки" },
     { hall: "VIP зал", screen: "10×5 м", sound: "Dolby Atmos", seats: "20", features: "Кресла-реклайнеры, обслуживание" }
   ];
 
   return (
     <div className="app">
       <Header />
-      
-      <motion.div 
+
+      <motion.div
         className="about-page"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -57,7 +57,7 @@ function About() {
         </div>
 
         {/* Миссия */}
-        <motion.div 
+        <motion.div
           className="mission-section"
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -71,7 +71,7 @@ function About() {
         </motion.div>
 
         {/* Преимущества */}
-        <motion.div 
+        <motion.div
           className="advantages-section"
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -80,7 +80,7 @@ function About() {
           <h2>Почему выбирают нас</h2>
           <div className="advantages-grid">
             {advantages.map((item, index) => (
-              <motion.div 
+              <motion.div
                 key={index}
                 className="advantage-card"
                 whileHover={{ y: -5 }}
@@ -94,7 +94,7 @@ function About() {
         </motion.div>
 
         {/* Технические характеристики залов */}
-        <motion.div 
+        <motion.div
           className="specs-section"
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -128,7 +128,7 @@ function About() {
         </motion.div>
 
         {/* Контакты и схема проезда */}
-        <motion.div 
+        <motion.div
           className="contact-section"
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -138,7 +138,7 @@ function About() {
           <div className="contact-grid">
             <div className="contact-info">
               <h3>Контактная информация</h3>
-              
+
               {/* Локация */}
               <div className="contact-item">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
@@ -146,7 +146,7 @@ function About() {
                 </svg>
                 <span>г. Москва, ул. Кинотеатральная, д. 10</span>
               </div>
-              
+
               {/* Телефон */}
               <div className="contact-item">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
@@ -154,7 +154,7 @@ function About() {
                 </svg>
                 <span>+7 (968) 985-25-47</span>
               </div>
-              
+
               {/* Email */}
               <div className="contact-item">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
@@ -162,7 +162,7 @@ function About() {
                 </svg>
                 <span>info@kino.ru</span>
               </div>
-              
+
               {/* Часы работы */}
               <div className="contact-item">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
@@ -171,7 +171,7 @@ function About() {
                 <span>Ежедневно с 10:00 до 02:00</span>
               </div>
             </div>
-            
+
             <div className="map-placeholder">
               <div className="map-content">
                 <div className="map-header">
