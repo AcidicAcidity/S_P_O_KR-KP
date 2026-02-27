@@ -27,7 +27,7 @@ async def get_all_movies():
             FROM movies
             ORDER BY id DESC
         """)
-        
+
         movies = cursor.fetchall()
         result = []
         for movie in movies:
@@ -74,10 +74,10 @@ async def create_movie(movie: MovieCreate):
             movie.release_date, movie.rating, movie.poster_url, movie.director,
             movie.actors, movie.country, movie.trailer_url
         ))
-        
+
         new_movie = cursor.fetchone()
         conn.commit()
-        
+
         return {
             "id": new_movie[0],
             "title": new_movie[1],
@@ -110,7 +110,7 @@ async def update_movie(movie_id: int, movie: MovieCreate):
     try:
         cursor = conn.cursor()
         cursor.execute("""
-            UPDATE movies 
+            UPDATE movies
             SET title = %s, description = %s, duration_minutes = %s, genre = %s,
                 release_date = %s, rating = %s, poster_url = %s, director = %s,
                 actors = %s, country = %s, trailer_url = %s
@@ -122,13 +122,13 @@ async def update_movie(movie_id: int, movie: MovieCreate):
             movie.release_date, movie.rating, movie.poster_url, movie.director,
             movie.actors, movie.country, movie.trailer_url, movie_id
         ))
-        
+
         updated_movie = cursor.fetchone()
         if not updated_movie:
             raise HTTPException(status_code=404, detail="Фильм не найден")
-            
+
         conn.commit()
-        
+
         return {
             "id": updated_movie[0],
             "title": updated_movie[1],
@@ -162,21 +162,21 @@ async def delete_movie(movie_id: int):
 
     try:
         cursor = conn.cursor()
-        
+
         # Проверяем, есть ли сеансы у этого фильма
         cursor.execute("SELECT id FROM sessions WHERE movie_id = %s LIMIT 1", (movie_id,))
         if cursor.fetchone():
             raise HTTPException(status_code=400, detail="Нельзя удалить фильм, у которого есть сеансы")
-        
+
         cursor.execute("DELETE FROM movies WHERE id = %s RETURNING id", (movie_id,))
         deleted = cursor.fetchone()
-        
+
         if not deleted:
             raise HTTPException(status_code=404, detail="Фильм не найден")
-            
+
         conn.commit()
         return {"message": "Фильм успешно удален"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -199,7 +199,7 @@ async def get_all_sessions():
     try:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT 
+            SELECT
                 s.id, s.movie_id, s.hall_id, s.start_time, s.price, s.available_seats,
                 m.title as movie_title, h.name as hall_name
             FROM sessions s
@@ -207,7 +207,7 @@ async def get_all_sessions():
             JOIN halls h ON s.hall_id = h.id
             ORDER BY s.start_time DESC
         """)
-        
+
         sessions = cursor.fetchall()
         result = []
         for s in sessions:
@@ -239,13 +239,13 @@ async def create_session(session_data: dict):
 
     try:
         cursor = conn.cursor()
-        
+
         # Проверяем, что все необходимые поля есть
         required_fields = ["movie_id", "hall_id", "start_time", "price", "available_seats"]
         for field in required_fields:
             if field not in session_data:
                 raise HTTPException(status_code=400, detail=f"Отсутствует поле {field}")
-        
+
         cursor.execute("""
             INSERT INTO sessions (movie_id, hall_id, start_time, price, available_seats)
             VALUES (%s, %s, %s, %s, %s)
@@ -257,12 +257,12 @@ async def create_session(session_data: dict):
             float(session_data["price"]),
             int(session_data["available_seats"])
         ))
-        
+
         new_id = cursor.fetchone()[0]
         conn.commit()
-        
+
         return {"id": new_id, "message": "Сеанс создан"}
-        
+
     except Exception as e:
         conn.rollback()
         logger.error(f"Ошибка при создании сеанса: {e}")
@@ -281,21 +281,21 @@ async def delete_session(session_id: int):
 
     try:
         cursor = conn.cursor()
-        
+
         # Проверяем, есть ли билеты на этот сеанс
         cursor.execute("SELECT id FROM tickets WHERE session_id = %s LIMIT 1", (session_id,))
         if cursor.fetchone():
             raise HTTPException(status_code=400, detail="Нельзя удалить сеанс, на который есть билеты")
-        
+
         cursor.execute("DELETE FROM sessions WHERE id = %s RETURNING id", (session_id,))
         deleted = cursor.fetchone()
-        
+
         if not deleted:
             raise HTTPException(status_code=404, detail="Сеанс не найден")
-            
+
         conn.commit()
         return {"message": "Сеанс успешно удален"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -318,7 +318,7 @@ async def get_all_halls():
     try:
         cursor = conn.cursor()
         cursor.execute("SELECT id, name, hall_type, capacity FROM halls ORDER BY id")
-        
+
         halls = cursor.fetchall()
         result = []
         for h in halls:
@@ -355,10 +355,10 @@ async def create_hall(hall_data: dict):
             hall_data["hall_type"],
             hall_data["capacity"]
         ))
-        
+
         new_id = cursor.fetchone()[0]
         conn.commit()
-        
+
         return {"id": new_id, "message": "Зал создан"}
     except Exception as e:
         logger.error(f"Ошибка: {e}")
@@ -377,21 +377,21 @@ async def delete_hall(hall_id: int):
 
     try:
         cursor = conn.cursor()
-        
+
         # Проверяем, есть ли сеансы в этом зале
         cursor.execute("SELECT id FROM sessions WHERE hall_id = %s LIMIT 1", (hall_id,))
         if cursor.fetchone():
             raise HTTPException(status_code=400, detail="Нельзя удалить зал, в котором есть сеансы")
-        
+
         cursor.execute("DELETE FROM halls WHERE id = %s RETURNING id", (hall_id,))
         deleted = cursor.fetchone()
-        
+
         if not deleted:
             raise HTTPException(status_code=404, detail="Зал не найден")
-            
+
         conn.commit()
         return {"message": "Зал успешно удален"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -418,7 +418,7 @@ async def get_all_users():
             FROM customers
             ORDER BY registration_date DESC
         """)
-        
+
         users = cursor.fetchall()
         result = []
         for u in users:
@@ -436,8 +436,6 @@ async def get_all_users():
     finally:
         conn.close()
 
-# Полностью замени блок с билетами на этот:
-
 # ========== БИЛЕТЫ ==========
 
 @router.get("/tickets")
@@ -452,17 +450,17 @@ async def get_all_tickets():
     try:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT 
-                t.id, 
-                t.session_id, 
-                t.seat_id, 
-                t.price, 
-                t.purchase_date, 
+            SELECT
+                t.id,
+                t.session_id,
+                t.seat_id,
+                t.price,
+                t.purchase_date,
                 t.status,
-                m.title as movie_title, 
+                m.title as movie_title,
                 s.start_time as session_time,
-                h.name as hall_name, 
-                seats.row_number, 
+                h.name as hall_name,
+                seats.row_number,
                 seats.seat_number,
                 c.full_name as customer_name
             FROM tickets t
@@ -473,7 +471,7 @@ async def get_all_tickets():
             LEFT JOIN customers c ON t.customer_id = c.id
             ORDER BY t.purchase_date DESC
         """)
-        
+
         tickets = cursor.fetchall()
         result = []
         for t in tickets:
@@ -509,17 +507,17 @@ async def clear_refunded_tickets():
 
     try:
         cursor = conn.cursor()
-        
+
         # Удаляем все билеты со статусом 'Возврат'
         cursor.execute("DELETE FROM tickets WHERE status = 'Возврат'")
-        
+
         # Получаем количество удаленных строк
         deleted_count = cursor.rowcount
-        
+
         conn.commit()
-        
+
         return {"count": deleted_count, "message": f"Удалено {deleted_count} возвращенных билетов"}
-        
+
     except Exception as e:
         conn.rollback()
         logger.error(f"Ошибка при очистке возвращенных билетов: {e}")
@@ -538,37 +536,37 @@ async def clear_all_tickets():
 
     try:
         cursor = conn.cursor()
-        
+
         # Получаем все сеансы и их залы для сброса мест
         cursor.execute("""
-            SELECT s.id, h.capacity 
+            SELECT s.id, h.capacity
             FROM sessions s
             JOIN halls h ON s.hall_id = h.id
         """)
         sessions = cursor.fetchall()
-        
+
         # Получаем количество билетов до удаления
         cursor.execute("SELECT COUNT(*) FROM tickets")
         count_before = cursor.fetchone()[0]
-        
+
         # Удаляем все билеты
         cursor.execute("DELETE FROM tickets")
-        
+
         # Сбрасываем счетчик мест в каждом сеансе на полную вместимость
         for session_id, capacity in sessions:
             cursor.execute("""
-                UPDATE sessions 
-                SET available_seats = %s 
+                UPDATE sessions
+                SET available_seats = %s
                 WHERE id = %s
             """, (capacity, session_id))
-        
+
         conn.commit()
-        
+
         return {
             "message": f"Удалено {count_before} билетов. Все места освобождены.",
             "count": count_before
         }
-        
+
     except Exception as e:
         conn.rollback()
         logger.error(f"Ошибка при очистке всех билетов: {e}")
@@ -587,54 +585,54 @@ async def delete_ticket(ticket_id: int):
 
     try:
         cursor = conn.cursor()
-        
+
         # Начинаем транзакцию
         conn.autocommit = False
-        
+
         # Проверяем, существует ли билет и получаем информацию о сеансе
         cursor.execute("""
-            SELECT t.id, t.session_id, t.status, s.available_seats, s.id 
+            SELECT t.id, t.session_id, t.status, s.available_seats, s.id
             FROM tickets t
             JOIN sessions s ON t.session_id = s.id
             WHERE t.id = %s
         """, (ticket_id,))
-        
+
         ticket = cursor.fetchone()
-        
+
         if not ticket:
             raise HTTPException(status_code=404, detail="Билет не найден")
-        
+
         if ticket[2] == 'Возврат':
             raise HTTPException(status_code=400, detail="Билет уже возвращен")
-        
+
         # Обновляем статус билета на "Возврат"
         cursor.execute("""
-            UPDATE tickets 
-            SET status = 'Возврат' 
-            WHERE id = %s 
+            UPDATE tickets
+            SET status = 'Возврат'
+            WHERE id = %s
             RETURNING id
         """, (ticket_id,))
-        
+
         # Увеличиваем количество доступных мест в сеансе
         cursor.execute("""
-            UPDATE sessions 
-            SET available_seats = available_seats + 1 
+            UPDATE sessions
+            SET available_seats = available_seats + 1
             WHERE id = %s
             RETURNING available_seats
         """, (ticket[1],))
-        
+
         updated_seats = cursor.fetchone()
-        
+
         conn.commit()
-        
+
         logger.info(f"✅ Билет {ticket_id} возвращен. Свободных мест в сеансе: {updated_seats[0]}")
-        
+
         return {
-            "message": "Билет успешно возвращен", 
+            "message": "Билет успешно возвращен",
             "id": ticket_id,
             "available_seats": updated_seats[0]
         }
-        
+
     except HTTPException:
         conn.rollback()
         raise
