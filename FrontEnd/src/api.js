@@ -33,13 +33,13 @@ export async function getSessionSeats(sessionId) {
   return handleResponse(res);
 }
 
-export async function purchaseTicket({ sessionId, seatIds, customer }) {
+export async function purchaseTicket({ sessionId, seatIds, userId, useBonus, customerName }) {
   const body = {
     session_id: sessionId,
     seat_ids: seatIds,
-    customer_name: customer?.name || null,
-    customer_email: customer?.email || null,
-    customer_phone: customer?.phone || null,
+    customer_name: customerName || null,
+    user_id: userId || null,
+    use_bonus: useBonus || false,
   };
 
   const res = await fetch(`${API_BASE_URL}/tickets/purchase`, {

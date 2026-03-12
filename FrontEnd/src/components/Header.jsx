@@ -3,10 +3,12 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import AuthModal from "./AuthModal";
+import ProfileModal from "./ProfileModal"; // Импортируем ProfileModal
 
 export default function Header() {
   const { user, logout, isAdmin } = useAuth();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false); // Состояние для профиля
 
   return (
     <header className="header">
@@ -30,17 +32,18 @@ export default function Header() {
         {/* Правая часть с авторизацией */}
         <div className="auth">
           {user ? (
-            <div className="user-box">
+            <div 
+              className="user-box" 
+              onClick={() => setIsProfileOpen(true)} // Открываем профиль при клике
+              style={{ cursor: 'pointer' }}
+            >
               <span className="user-greeting">
                 {user.name}
                 {isAdmin && <span className="admin-badge">Admin</span>}
               </span>
-              <button 
-                className="logout-btn"
-                onClick={logout}
-              >
-                Выйти
-              </button>
+              <div className="user-avatar">
+                {user.name?.[0] || user.email?.[0] || '👤'}
+              </div>
             </div>
           ) : (
             <button 
@@ -57,6 +60,12 @@ export default function Header() {
       <AuthModal 
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
+      />
+
+      {/* Модальное окно профиля */}
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
       />
     </header>
   );

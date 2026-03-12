@@ -1,91 +1,170 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Header from "../components/Header";
 import { getSessionSeats, getMovieDetails, purchaseTicket } from "../api";
+import { createBooking, cancelBooking } from "../api/bookings";
+import { useAuth } from "../context/AuthContext";
+import PaymentModal from "../components/PaymentModal";
 
 function SeatSelection() {
   const location = useLocation();
   const navigate = useNavigate();
   const { movie, session: initialSession } = location.state || {};
+  const { user } = useAuth();
 
   const [movieData, setMovieData] = useState(movie);
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(initialSession);
   const [sessionData, setSessionData] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState([]);
+  const [bookedSeats, setBookedSeats] = useState([]);
+  const [bookingId, setBookingId] = useState(null);
+  const [bookingExpiry, setBookingExpiry] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [loading, setLoading] = useState(true);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [purchaseMessage, setPurchaseMessage] = useState(null);
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [bonusUsed, setBonusUsed] = useState(0);
 
-  // Функция для преобразования номера ряда в букву
-  const getRowLetter = (rowNumber) => {
-    // 1 -> A, 2 -> B, 3 -> C, 4 -> D, 5 -> E, 6 -> F, 7 -> G, 8 -> H, 9 -> I, 10 -> J, etc.
-    return String.fromCharCode(64 + parseInt(rowNumber)); // 65 is 'A', так что 64 + номер
-  };
+  const getRowLetter = (rowNumber) => String.fromCharCode(64 + parseInt(rowNumber));
 
-  // Загружаем все сеансы фильма
+  // Загрузка сеансов
   useEffect(() => {
     if (!movie?.id) return;
-
     setSessionsLoading(true);
     getMovieDetails(movie.id)
       .then((data) => {
-        console.log("Детали фильма:", data);
         setMovieData(data);
-        
         const allSessions = data.today_sessions || [];
-        console.log("Все сеансы:", allSessions);
         setSessions(allSessions);
-        
         if (allSessions.length > 0 && !selectedSession) {
           setSelectedSession(allSessions[0]);
         }
       })
-      .catch((err) => {
-        console.error("Ошибка загрузки сеансов:", err);
-      })
-      .finally(() => {
-        setSessionsLoading(false);
-      });
+      .finally(() => setSessionsLoading(false));
   }, [movie?.id]);
 
-  // Загружаем места для выбранного сеанса
+  // Загрузка мест
   useEffect(() => {
     if (!selectedSession) return;
-
     let cancelled = false;
     setLoading(true);
-    setError(null);
     setSelectedSeats([]);
 
     getSessionSeats(selectedSession.session_id)
       .then((data) => {
-        console.log("Данные о местах:", data);
         if (!cancelled) {
           setSessionData(data);
           setLoading(false);
         }
       })
       .catch((err) => {
-        if (!cancelled) {
-          setError(err.message || "Не удалось загрузить места");
-          setLoading(false);
-        }
+        if (!cancelled) setError(err.message);
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [selectedSession]);
 
+  // Восстановление брони из sessionStorage при загрузке
+  useEffect(() => {
+    const savedBooking = sessionStorage.getItem('currentBooking');
+    if (savedBooking && selectedSession) {
+      try {
+        const booking = JSON.parse(savedBooking);
+        
+        // Проверяем, что бронь относится к текущему сеансу
+        if (booking.sessionId === selectedSession.session_id) {
+          const now = Date.now();
+          
+          // Если бронь ещё активна
+          if (booking.expiresAt > now) {
+            setBookedSeats(booking.seatIds);
+            setBookingId(booking.bookingId);
+            setBookingExpiry(booking.expiresAt);
+          } 
+          // Если бронь истекла, удаляем её
+          else {
+            sessionStorage.removeItem('currentBooking');
+            // Отменяем бронь на сервере
+            if (booking.bookingId) {
+              cancelBooking(booking.bookingId).catch(console.error);
+            }
+          }
+        }
+      } catch (e) {
+        sessionStorage.removeItem('currentBooking');
+      }
+    }
+  }, [selectedSession]);
+
+  // Таймер обратного отсчёта
+  useEffect(() => {
+    if (!bookingExpiry) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const updateTimer = () => {
+      const now = Date.now();
+      const diff = bookingExpiry - now;
+      
+      if (diff <= 0) {
+        setTimeLeft("00:00");
+        clearBooking();
+        alert("⏰ Время брони истекло");
+        return null;
+      } else {
+        const minutes = Math.floor(diff / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+        setTimeLeft(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+        return diff;
+      }
+    };
+
+    // Обновляем сразу
+    updateTimer();
+
+    // Запускаем интервал
+    const interval = setInterval(updateTimer, 1000);
+    
+    return () => clearInterval(interval);
+  }, [bookingExpiry]);
+
+  // Сохраняем бронь в sessionStorage при изменении
+  useEffect(() => {
+    if (bookingId && bookedSeats.length > 0 && bookingExpiry) {
+      const bookingData = {
+        seatIds: bookedSeats,
+        bookingId: bookingId,
+        expiresAt: bookingExpiry,
+        sessionId: selectedSession?.session_id
+      };
+      sessionStorage.setItem('currentBooking', JSON.stringify(bookingData));
+    }
+  }, [bookingId, bookedSeats, bookingExpiry, selectedSession]);
+
   const goBack = () => {
-    navigate(`/movie/${movie.id}`, {
-      state: { movieCard: movie }
-    });
+    navigate(`/movie/${movie.id}`, { state: { movieCard: movie } });
+  };
+
+  const clearBooking = async () => {
+    if (bookingId) {
+      try {
+        await cancelBooking(bookingId);
+      } catch (err) {
+        console.error("Ошибка отмены брони:", err);
+      }
+    }
+    sessionStorage.removeItem('currentBooking');
+    setBookedSeats([]);
+    setBookingId(null);
+    setBookingExpiry(null);
+    setTimeLeft(null);
   };
 
   if (!movie || !initialSession) {
@@ -94,9 +173,7 @@ function SeatSelection() {
         <Header />
         <div className="seat-page">
           <p>Данные о сеансе отсутствуют</p>
-          <button onClick={() => navigate("/")} className="back-btn">
-            Вернуться на главную
-          </button>
+          <button onClick={() => navigate("/")}>Вернуться</button>
         </div>
       </div>
     );
@@ -104,268 +181,381 @@ function SeatSelection() {
 
   const toggleSeat = (seat) => {
     if (!seat.available) return;
-
-    setSelectedSeats((prev) => {
-      if (prev.includes(seat.id)) {
-        return prev.filter((id) => id !== seat.id);
-      } else {
-        return [...prev, seat.id];
-      }
-    });
+    
+    if (user && bookedSeats.length > 0) {
+      alert("Сначала оплатите или отмените текущую бронь");
+      return;
+    }
+    
+    setSelectedSeats((prev) =>
+      prev.includes(seat.id) ? prev.filter((id) => id !== seat.id) : [...prev, seat.id]
+    );
   };
 
-  const totalPrice =
-    selectedSeats.length * (sessionData ? sessionData.price : selectedSession.price);
-
-  const handlePurchase = async () => {
-    if (!sessionData || selectedSeats.length === 0) return;
-    setIsPurchasing(true);
-    setPurchaseMessage(null);
-
+  // Бронирование
+  const handleBooking = async () => {
+    if (!user) {
+      alert("Чтобы бронировать места, нужно войти в аккаунт");
+      return;
+    }
+    if (selectedSeats.length === 0) return;
+    
     try {
-      // Отправляем все выбранные места одним запросом
-      await purchaseTicket({
-        sessionId: selectedSession.session_id,
-        seatIds: selectedSeats,
-        customer: {},
-      });
-
-      setPurchaseMessage("Билеты успешно куплены!");
-      setSelectedSeats([]);
-
-      const updated = await getSessionSeats(selectedSession.session_id);
-      setSessionData(updated);
-    } catch (err) {
-      setPurchaseMessage(
-        "❌ " + (err.message || "Не удалось купить билеты. Попробуйте ещё раз.")
+      const bookings = await createBooking(
+        selectedSession.session_id,
+        selectedSeats,
+        user.id
       );
-    } finally {
-      setIsPurchasing(false);
+      
+      const expiresAt = Date.now() + 15 * 60 * 1000;
+      
+      setBookedSeats(selectedSeats);
+      setBookingId(bookings[0]?.id || null);
+      setBookingExpiry(expiresAt);
+      
+    } catch (err) {
+      alert("Ошибка бронирования: " + err.message);
     }
   };
 
-  const changeSession = (newSession) => {
-    setSelectedSession(newSession);
+  // Отмена брони
+  const handleCancelBooking = async () => {
+    await clearBooking();
+    setSelectedSeats([]);
+    const updated = await getSessionSeats(selectedSession.session_id);
+    setSessionData(updated);
   };
 
-  // Функция для определения типа зала и соответствующей отрисовки
+  // Открытие окна оплаты
+  const handlePurchaseClick = () => {
+    if (!sessionData || selectedSeats.length === 0) return;
+    setIsPaymentOpen(true);
+  };
+
+  // Успешная оплата
+  const handlePaymentSuccess = async (paymentResult) => {
+    if (paymentResult.success) {
+      setIsPurchasing(true);
+      try {
+        const result = await purchaseTicket({
+          sessionId: selectedSession.session_id,
+          seatIds: selectedSeats,
+          userId: user?.id || null,
+          customerName: user?.name || null,
+          usedBonus: paymentResult.usedBonus || 0
+        });
+        
+        let message = "✅ Билеты успешно куплены!";
+        if (result.bonus_earned) {
+          message += ` Начислено ${result.bonus_earned} бонусов!`;
+        }
+        setPurchaseMessage(message);
+        
+        await clearBooking();
+        setSelectedSeats([]);
+        setBonusUsed(0);
+        
+        const updated = await getSessionSeats(selectedSession.session_id);
+        setSessionData(updated);
+      } catch (err) {
+        setPurchaseMessage("❌ " + err.message);
+      } finally {
+        setIsPurchasing(false);
+      }
+    } else {
+      setPurchaseMessage("❌ Ошибка оплаты. Попробуйте другую карту.");
+    }
+  };
+
+  const changeSession = (newSession) => setSelectedSession(newSession);
+
+  // Отрисовка зала
   const renderHall = () => {
     if (!sessionData) return null;
-
     const hallName = sessionData.hall_name?.toLowerCase() || '';
-    let seatsByRow = sessionData.seats_by_row || {};
-    let rows = Object.keys(seatsByRow).sort((a, b) => Number(a) - Number(b));
+    const seatsByRow = sessionData.seats_by_row || {};
+    const rows = Object.keys(seatsByRow).sort((a, b) => Number(a) - Number(b));
 
-    // Определяем тип зала по названию
-    if (hallName.includes('vip')) {
-      return renderVipHall(rows, seatsByRow);
-    } else {
-      return renderRegularHall(rows, seatsByRow);
-    }
-  };
-
-  // Обычный зал: 12 рядов × 8 мест
-  const renderRegularHall = (rows, seatsByRow) => {
-    return rows.map((rowKey) => {
+    const renderRow = (rowKey) => {
       const rowSeats = seatsByRow[rowKey] || [];
       const rowLetter = getRowLetter(rowKey);
-      
       return (
         <div className="row" key={rowKey}>
           <div className="row-label">{rowLetter}</div>
-          <div className="seats regular-grid">
+          <div className={`seats ${hallName.includes('vip') ? 'vip-grid' : 'regular-grid'}`}>
             {rowSeats.map((seat) => {
               const isSelected = selectedSeats.includes(seat.id);
+              const isBooked = bookedSeats.includes(seat.id);
               return (
-                <div
+                <motion.div
                   key={seat.id}
                   className={`seat ${isSelected ? "selected" : ""} ${
                     !seat.available ? "unavailable" : ""
-                  }`}
+                  } ${isBooked ? "booked" : ""} ${hallName.includes('vip') ? 'vip-seat' : ''}`}
                   onClick={() => toggleSeat(seat)}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
                   title={`Ряд ${rowLetter}, Место ${seat.seat}${
-                    !seat.available ? " (занято)" : ""
+                    !seat.available ? " (занято)" : isBooked ? " (забронировано)" : ""
                   }`}
                 >
                   {seat.seat}
-                </div>
+                </motion.div>
               );
             })}
           </div>
           <div className="row-label">{rowLetter}</div>
         </div>
       );
-    });
+    };
+
+    if (hallName.includes('vip')) {
+      return rows.slice(0, 5).map(renderRow);
+    }
+    return rows.map(renderRow);
   };
 
-  // VIP зал: 5 рядов × 8 мест
-  const renderVipHall = (rows, seatsByRow) => {
-    console.log("VIP зал - все ряды:", rows);
-    console.log("VIP зал - данные мест:", seatsByRow);
-    
-    // Берем только первые 5 рядов для VIP зала
-    const vipRows = rows.slice(0, 5);
-    console.log("VIP зал - отобранные ряды:", vipRows);
-    
-    return vipRows.map((rowKey) => {
-      const rowSeats = seatsByRow[rowKey] || [];
-      const rowLetter = getRowLetter(rowKey);
-      
-      console.log(`Ряд ${rowKey} (${rowLetter}) - количество мест:`, rowSeats.length);
-      console.log(`Ряд ${rowKey} - места:`, rowSeats);
-      
-      // Создаем массив из 8 мест (если меньше - дополняем пустыми)
-      const displaySeats = rowSeats;
-      
-      return (
-        <div className="row" key={rowKey}>
-          <div className="row-label">{rowLetter}</div>
-          <div className="seats vip-grid">
-            {displaySeats.map((seat) => {
-              const isSelected = selectedSeats.includes(seat.id);
-
-              return (
-                <div
-                  key={seat.id}
-                  className={`seat vip-seat ${isSelected ? "selected" : ""} ${
-                    !seat.available ? "unavailable" : ""
-                  }`}
-                  onClick={() => toggleSeat(seat)}
-                  title={`Ряд ${rowLetter}, Место ${seat.seat} VIP${
-                    !seat.available ? " (занято)" : ""
-                  }`}
-                >
-                  {seat.seat}
-                </div>
-              );
-            })}
-          </div>
-          <div className="row-label">{rowLetter}</div>
-        </div>
-      );
-    });
-  };
+  const totalPrice = selectedSeats.length * (sessionData?.price || selectedSession.price);
+  const finalPrice = totalPrice - bonusUsed;
 
   return (
     <div className="app">
       <Header />
 
       <div className="seat-page">
-        <button className="back-button" onClick={goBack}>
-          ← Назад к фильму
-        </button>
+        <motion.button 
+          className="back-button" 
+          onClick={goBack}
+          whileHover={{ x: -5 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          ← Назад
+        </motion.button>
 
         <div className="zoom-controls">
-          <button onClick={() => setZoom((prev) => Math.min(prev + 0.1, 1.3))}>+</button>
-          <button onClick={() => setZoom((prev) => Math.max(prev - 0.1, 0.8))}>−</button>
+          <motion.button 
+            onClick={() => setZoom(z => Math.min(z + 0.1, 1.3))}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+          >+</motion.button>
+          <motion.button 
+            onClick={() => setZoom(z => Math.max(z - 0.1, 0.8))}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+          >−</motion.button>
           <div className="zoom-level">{Math.round(zoom * 100)}%</div>
         </div>
 
-        <div className="session-switcher">
-          <h3>ВЫБЕРИТЕ СЕАНС</h3>
-          {sessionsLoading ? (
-            <p style={{ color: '#aaa', textAlign: 'center' }}>Загрузка...</p>
-          ) : sessions.length === 0 ? (
-            <p style={{ color: '#aaa', textAlign: 'center' }}>Нет сеансов</p>
-          ) : (
-            <div className="sessions-list">
-              {sessions.map((s) => (
-                <div
-                  key={s.session_id}
-                  className={`session-item ${selectedSession?.session_id === s.session_id ? "active" : ""}`}
-                  onClick={() => changeSession(s)}
-                >
-                  <div className="session-info">
-                    <span className="session-time">{s.time}</span>
-                    <span className="session-hall">{s.hall_name}</span>
-                  </div>
-                  <span className="session-price">{s.price}₽</span>
+        <motion.div 
+          className="session-switcher"
+          initial={{ x: 20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          <h3>🎬 СЕАНСЫ</h3>
+          <div className="sessions-list">
+            {sessions.map((s, i) => (
+              <motion.div
+                key={s.session_id}
+                className={`session-item ${selectedSession?.session_id === s.session_id ? "active" : ""}`}
+                onClick={() => changeSession(s)}
+                whileHover={{ x: -3 }}
+                whileTap={{ scale: 0.98 }}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.05 }}
+              >
+                <div className="session-info">
+                  <span className="session-time">{s.time}</span>
+                  <span className="session-hall">{s.hall_name}</span>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                <span className="session-price">{s.price}₽</span>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
 
         <div className="seat-container">
-          <h2>{movieData?.title || movie.title}</h2>
+          <motion.h2 
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+          >
+            {movieData?.title || movie.title}
+          </motion.h2>
 
-          <div className="badges">
-            {selectedSession?.hall_name && (
-              <span className="hall-badge">{selectedSession.hall_name}</span>
-            )}
-            {selectedSession?.time && (
-              <span className="time-badge">{selectedSession.time}</span>
-            )}
-            {sessionData?.price && (
-              <span className="price-badge">{sessionData.price}₽</span>
-            )}
-          </div>
+          <motion.div 
+            className="badges"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+          >
+            <span className="hall-badge">🏛️ {selectedSession?.hall_name}</span>
+            <span className="time-badge">⏰ {selectedSession?.time}</span>
+            <span className="price-badge">💰 {sessionData?.price}₽</span>
+          </motion.div>
 
-          {/* ===== ЛЕГЕНДА ===== */}
-          <div className="seats-legend">
-            <div className="legend-item">
-              <div className="legend-color available"></div>
-              <span>Свободно</span>
-            </div>
-            <div className="legend-item">
-              <div className="legend-color selected"></div>
-              <span>Выбрано</span>
-            </div>
-            <div className="legend-item">
-              <div className="legend-color unavailable"></div>
-              <span>Занято</span>
-            </div>
-          </div>
+          <motion.div 
+            className="seats-legend"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="legend-item"><span className="legend-color available" /> Свободно</div>
+            <div className="legend-item"><span className="legend-color selected" /> Выбрано</div>
+            <div className="legend-item"><span className="legend-color unavailable" /> Занято</div>
+            {user && <div className="legend-item"><span className="legend-color booked" /> Забронировано</div>}
+          </motion.div>
 
-          {/* ===== ЭКРАН ===== */}
-          <div className="screen">ЭКРАН</div>
+          <motion.div 
+            className="screen"
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            ЭКРАН
+          </motion.div>
 
-          {loading && <p className="loading-message">Загрузка схемы зала...</p>}
-          {error && <p className="error-message">{error}</p>}
-
-          {!loading && sessionData && (
-            <div className="hall-wrapper">
-              <div className="hall" style={{ transform: `scale(${zoom})` }}>
-                {renderHall()}
-              </div>
-            </div>
-          )}
-
-          {selectedSeats.length > 0 && (
-            <motion.div 
-              className="checkout"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <div className="checkout-info">
-                <p>Выбрано мест: {selectedSeats.length}</p>
-                <p className="selected-seats-list">
-                  {selectedSeats.map(id => {
-                    const seat = Object.values(sessionData?.seats_by_row || {})
-                      .flat()
-                      .find(s => s.id === id);
-                    return seat ? `${getRowLetter(seat.row)}-${seat.seat}` : '';
-                  }).join(', ')}
-                </p>
-                <p className="total-price">Сумма: {totalPrice}₽</p>
-              </div>
-              <button
-                className="buy-btn screen-style"
-                onClick={handlePurchase}
-                disabled={isPurchasing}
+          <AnimatePresence mode="wait">
+            {loading ? (
+              <motion.div 
+                key="loading"
+                className="loading-message"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
               >
-                {isPurchasing ? "Покупка..." : "Оплатить билеты"}
-              </button>
-            </motion.div>
-          )}
+                <div className="loader"></div>
+                <p>Загрузка схемы зала...</p>
+              </motion.div>
+            ) : error ? (
+              <motion.div 
+                key="error"
+                className="error-message"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                {error}
+              </motion.div>
+            ) : sessionData && (
+              <motion.div 
+                key="hall"
+                className="hall-wrapper"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <div className="hall" style={{ transform: `scale(${zoom})` }}>
+                  {renderHall()}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {purchaseMessage && (
-            <div className={`purchase-message ${purchaseMessage.includes('') ? 'success' : 'error'}`}>
-              {purchaseMessage}
-            </div>
-          )}
+          <AnimatePresence>
+            {/* Блок для авторизованных пользователей (бронь) */}
+            {user && selectedSeats.length > 0 && !bookedSeats.length && (
+              <motion.div 
+                className="booking-section"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+              >
+                <motion.button 
+                  className="booking-btn"
+                  onClick={handleBooking}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  🕒 Забронировать на 15 мин
+                </motion.button>
+                <p className="booking-hint">Бронь доступна только авторизованным</p>
+              </motion.div>
+            )}
+
+            {user && bookedSeats.length > 0 && (
+              <motion.div 
+                className="booking-info"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+              >
+                <p>✅ Забронировано</p>
+                <div className="booking-timer">⏰ {timeLeft || "00:00"}</div>
+                <motion.button 
+                  className="cancel-booking-btn"
+                  onClick={handleCancelBooking}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  ✕ Отменить
+                </motion.button>
+              </motion.div>
+            )}
+
+            {/* Блок покупки (доступен всем) */}
+            {selectedSeats.length > 0 && (
+              <motion.div 
+                className="checkout"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+              >
+                <div className="checkout-info">
+                  <p>🎫 {selectedSeats.length} мест(а)</p>
+                  {bonusUsed > 0 ? (
+                    <>
+                      <p className="original-price">Сумма: {totalPrice}₽</p>
+                      <p className="bonus-discount">Скидка бонусами: -{bonusUsed}₽</p>
+                      <p className="total-price">Итого: {finalPrice}₽</p>
+                    </>
+                  ) : (
+                    <p className="total-price">Сумма: {totalPrice}₽</p>
+                  )}
+                </div>
+                <motion.button
+                  className="buy-btn"
+                  onClick={handlePurchaseClick}
+                  disabled={isPurchasing}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {isPurchasing ? "⏳" : "💳 Купить билеты"}
+                </motion.button>
+                
+                {!user && (
+                  <p className="guest-hint">👤 Покупка без регистрации</p>
+                )}
+                
+                {user && bookedSeats.length === 0 && selectedSeats.length > 0 && (
+                  <p className="booking-hint">Или забронируйте места выше</p>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {purchaseMessage && (
+              <motion.div 
+                className={`purchase-message ${purchaseMessage.includes('✅') ? 'success' : 'error'}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                {purchaseMessage}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
+
+      <PaymentModal
+        isOpen={isPaymentOpen}
+        onClose={() => setIsPaymentOpen(false)}
+        amount={totalPrice}
+        onSuccess={handlePaymentSuccess}
+        user={user}
+      />
     </div>
   );
 }

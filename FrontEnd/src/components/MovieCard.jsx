@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom"; // ← Добавь эту строку
 import { useState } from "react";
 
 function MovieCard({ movie }) {
@@ -22,7 +22,6 @@ function MovieCard({ movie }) {
   const rating =
     typeof movie.rating === "number" ? movie.rating.toFixed(1) : "—";
   
-  // Постер из API или заглушка
   const posterUrl = movie.poster_url || "https://via.placeholder.com/300x400?text=No+Poster";
   const fallbackUrl = "https://via.placeholder.com/300x400?text=No+Poster";
 
@@ -31,9 +30,10 @@ function MovieCard({ movie }) {
       className="movie-card"
       onClick={handleClick}
       whileHover={{
-        scale: 1.05,
+        scale: 1.08,
+        rotateY: 6,
       }}
-      transition={{ type: "spring", stiffness: 300 }}
+      transition={{ type: "spring", stiffness: 220 }}
       style={{ cursor: "pointer" }}
     >
       <div 
@@ -52,7 +52,6 @@ function MovieCard({ movie }) {
         </div>
         <div className="rating">★ {rating}</div>
         
-        {/* Индикатор наличия сеансов */}
         {movie.today_sessions?.length > 0 ? (
           <div className="sessions-badge">
             <span className="has-sessions">

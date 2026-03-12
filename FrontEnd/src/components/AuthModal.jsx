@@ -5,56 +5,62 @@ import { useAuth } from "../context/AuthContext";
 import "./AuthModal.css";
 
 export default function AuthModal({ isOpen, onClose }) {
-  const { login, adminLogin } = useAuth();
+  const { login, register } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: "",
     email: "",
+    phone: "",
     password: ""
   });
 
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
   const validatePassword = (password) => {
-    const strong =
-      password.length >= 8 &&
-      /[A-Z]/.test(password) &&
-      /[0-9]/.test(password);
-    return strong;
+    return password.length >= 6;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
-    // Проверка на admin/admin
-    if (form.email === "admin" && form.password === "admin") {
-      adminLogin();
-      onClose();
-      return;
-    }
-
-    if (!isLogin && !validatePassword(form.password)) {
-      setError("Пароль должен быть ≥8 символов, 1 цифра и 1 заглавная буква");
-      return;
-    }
+    setLoading(true);
 
     try {
-      // 🔥 Пока fake запрос
-      const fakeResponse = {
-        user: {
-          id: 1,
-          name: form.name || form.email.split('@')[0],
+      let result;
+      
+      if (isLogin) {
+        // Вход
+        result = await login(form.email, form.password);
+      } else {
+        // Регистрация
+        if (!validatePassword(form.password)) {
+          setError("Пароль должен быть не менее 6 символов");
+          setLoading(false);
+          return;
+        }
+        result = await register({
+          name: form.name,
           email: form.email,
-          isAdmin: false
-        },
-        token: "fake-jwt-token-123"
-      };
+          phone: form.phone || null,
+          password: form.password
+        });
+      }
 
-      login(fakeResponse.user, fakeResponse.token);
-      onClose();
-
+      if (result.success) {
+        onClose();
+        // Очищаем форму
+        setForm({ name: "", email: "", phone: "", password: "" });
+      } else {
+        setError(result.error);
+      }
     } catch (err) {
-      setError("Ошибка авторизации");
+      setError("Произошла ошибка. Попробуйте позже.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,41 +82,52 @@ export default function AuthModal({ isOpen, onClose }) {
 
             <form onSubmit={handleSubmit}>
               {!isLogin && (
-                <input
-                  type="text"
-                  placeholder="Имя"
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm({ ...form, name: e.target.value })
-                  }
-                  required
-                />
+                <>
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Имя *"
+                    value={form.name}
+                    onChange={handleChange}
+                    required
+                  />
+                  <input
+                    type="tel"
+                    name="phone"
+                    placeholder="Телефон (необязательно)"
+                    value={form.phone}
+                    onChange={handleChange}
+                  />
+                </>
               )}
 
               <input
-                type="text" // Изменил с email на text, чтобы можно было ввести "admin"
-                placeholder="Email или логин"
+                type="email"
+                name="email"
+                placeholder="Email *"
                 value={form.email}
+                onChange={handleChange}
                 required
-                onChange={(e) =>
-                  setForm({ ...form, email: e.target.value })
-                }
               />
 
               <input
                 type="password"
-                placeholder="Пароль"
+                name="password"
+                placeholder="Пароль *"
                 value={form.password}
+                onChange={handleChange}
                 required
-                onChange={(e) =>
-                  setForm({ ...form, password: e.target.value })
-                }
+                minLength={6}
               />
 
               {error && <p className="error-text">{error}</p>}
 
-              <button type="submit" className="auth-btn">
-                {isLogin ? "Войти" : "Создать аккаунт"}
+              <button 
+                type="submit" 
+                className="auth-btn"
+                disabled={loading}
+              >
+                {loading ? "Загрузка..." : (isLogin ? "Войти" : "Создать аккаунт")}
               </button>
             </form>
 
@@ -120,7 +137,13 @@ export default function AuthModal({ isOpen, onClose }) {
                 {isLogin ? " Зарегистрироваться" : " Войти"}
               </span>
             </p>
-            
+
+            {/* Подсказка для админа */}
+            {isLogin && (
+              <p className="admin-hint">
+                👑 Демо: admin@cinema.ru / admin123
+              </p>
+            )}
           </motion.div>
         </div>
       )}

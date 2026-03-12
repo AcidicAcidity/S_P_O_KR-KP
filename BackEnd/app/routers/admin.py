@@ -643,3 +643,229 @@ async def delete_ticket(ticket_id: int):
     finally:
         conn.autocommit = True
         conn.close()
+
+
+# ========== АРЕНДА ЗАЛОВ ==========
+
+@router.get("/rentals")
+async def get_all_rentals():
+    """
+    Получить все заявки на аренду (для админки)
+    """
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Ошибка подключения к БД")
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                rc.id,
+                rc.contract_number,
+                rc.hall_id,
+                h.name as hall_name,
+                rc.start_time,
+                rc.end_time,
+                rc.duration_hours,
+                rc.price_per_hour,
+                rc.total_price,
+                rc.status,
+                rc.notes,
+                rc.created_at,
+                r.id as renter_id,
+                r.full_name as renter_name,
+                r.email as renter_email,
+                r.phone as renter_phone,
+                r.company_name
+            FROM rental_contracts rc
+            JOIN halls h ON rc.hall_id = h.id
+            JOIN renters r ON rc.renter_id = r.id
+            ORDER BY rc.created_at DESC
+        """)
+        
+        rentals = cursor.fetchall()
+        result = []
+        for r in rentals:
+            result.append({
+                "id": r[0],
+                "contract_number": r[1],
+                "hall_id": r[2],
+                "hall_name": r[3],
+                "start_time": r[4],
+                "end_time": r[5],
+                "duration_hours": float(r[6]),
+                "price_per_hour": float(r[7]),
+                "total_price": float(r[8]),
+                "status": r[9],
+                "notes": r[10],
+                "created_at": r[11],
+                "renter": {
+                    "id": r[12],
+                    "full_name": r[13],
+                    "email": r[14],
+                    "phone": r[15],
+                    "company_name": r[16]
+                }
+            })
+        return result
+    except Exception as e:
+        logger.error(f"Ошибка при получении заявок на аренду: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@router.patch("/rentals/{rental_id}")
+async def update_rental_status(rental_id: int, status_data: dict):
+    """
+    Обновить статус заявки на аренду
+    """
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Ошибка подключения к БД")
+
+    try:
+        cursor = conn.cursor()
+        new_status = status_data.get("status")
+        
+        if new_status not in ["pending", "confirmed", "cancelled", "completed"]:
+            raise HTTPException(status_code=400, detail="Неверный статус")
+        
+        cursor.execute("""
+            UPDATE rental_contracts
+            SET status = %s
+            WHERE id = %s
+            RETURNING id, contract_number, status
+        """, (new_status, rental_id))
+        
+        updated = cursor.fetchone()
+        if not updated:
+            raise HTTPException(status_code=404, detail="Заявка не найдена")
+        
+        conn.commit()
+        
+        return {
+            "id": updated[0],
+            "contract_number": updated[1],
+            "status": updated[2],
+            "message": f"Статус изменен на {new_status}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Ошибка при обновлении статуса: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@router.delete("/clear-all")
+async def clear_all_rentals():
+    """
+    Полностью очищает все заявки на аренду из базы данных
+    """
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Ошибка подключения к БД")
+    
+    try:
+        cursor = conn.cursor()
+        
+        # Получаем количество записей перед удалением
+        cursor.execute("SELECT COUNT(*) FROM rental_contracts")
+        rentals_count = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM renters")
+        renters_count = cursor.fetchone()[0]
+        
+        # Удаляем все договоры аренды
+        cursor.execute("DELETE FROM rental_contracts")
+        deleted_rentals = cursor.rowcount
+        
+        # Удаляем всех арендаторов
+        cursor.execute("DELETE FROM renters")
+        deleted_renters = cursor.rowcount
+        
+        conn.commit()
+        
+        logger.info(f"✅ Очищено договоров: {deleted_rentals}, арендаторов: {deleted_renters}")
+        
+        return {
+            "success": True,
+            "message": f"Удалено {deleted_rentals} договоров и {deleted_renters} арендаторов",
+            "deleted_rentals": deleted_rentals,
+            "deleted_renters": deleted_renters
+        }
+        
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"❌ Ошибка при очистке: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@router.get("/")
+async def get_all_rentals():
+    """
+    Получить все заявки на аренду с полной информацией
+    """
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Ошибка подключения к БД")
+    
+    try:
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                rc.id,
+                rc.contract_number,
+                rc.hall_id,
+                h.name as hall_name,
+                rc.start_time,
+                rc.end_time,
+                rc.duration_hours,
+                rc.total_price,
+                rc.status,
+                rc.notes,
+                rc.created_at,
+                r.id as renter_id,
+                r.full_name,
+                r.email,
+                r.phone,
+                r.company_name
+            FROM rental_contracts rc
+            JOIN halls h ON rc.hall_id = h.id
+            JOIN renters r ON rc.renter_id = r.id
+            ORDER BY rc.created_at DESC
+        """)
+        
+        rentals = cursor.fetchall()
+        result = []
+        
+        for row in rentals:
+            result.append({
+                "id": row[0],
+                "contract_number": row[1],
+                "hall_id": row[2],
+                "hall_name": row[3],
+                "start_time": row[4].isoformat() if row[4] else None,
+                "end_time": row[5].isoformat() if row[5] else None,
+                "duration_hours": float(row[6]) if row[6] else 0,
+                "total_price": float(row[7]) if row[7] else 0,
+                "status": row[8],
+                "notes": row[9],
+                "created_at": row[10].isoformat() if row[10] else None,
+                "renter": {
+                    "id": row[11],
+                    "full_name": row[12],
+                    "email": row[13],
+                    "phone": row[14],
+                    "company_name": row[15]
+                }
+            })
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"❌ Ошибка при загрузке: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()

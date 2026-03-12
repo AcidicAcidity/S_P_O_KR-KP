@@ -1,5 +1,6 @@
 // src/context/AuthContext.jsx
 import React, { createContext, useState, useContext, useEffect } from "react";
+import { login as apiLogin, register as apiRegister } from "../api/auth";
 
 const AuthContext = createContext();
 
@@ -14,69 +15,73 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Проверяем localStorage при загрузке
     const storedUser = localStorage.getItem("user");
     const storedToken = localStorage.getItem("token");
     
     if (storedUser && storedToken) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
+      setUser(JSON.parse(storedUser));
       setToken(storedToken);
-      
-      // Проверяем, является ли пользователь админом
-      if (parsedUser.email === "admin" || 
-          (parsedUser.email === "admin@admin.com" && storedToken === "admin-token") ||
-          parsedUser.isAdmin) {
-        setIsAdmin(true);
-      }
     }
+    setLoading(false);
   }, []);
 
-  const login = (userData, token) => {
-    setUser(userData);
-    setToken(token);
-    
-    // Проверка на админа
-    const isUserAdmin = userData.email === "admin" || 
-                        userData.name === "admin" ||
-                        userData.isAdmin;
-    
-    setIsAdmin(isUserAdmin);
-    
-    localStorage.setItem("user", JSON.stringify(userData));
-    localStorage.setItem("token", token);
+  const login = async (email, password) => {
+    try {
+      const response = await apiLogin({ email, password });
+      const { user, token } = response;
+      
+      setUser(user);
+      setToken(token);
+      
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("token", token);
+      
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+
+  const register = async (userData) => {
+    try {
+      const response = await apiRegister(userData);
+      const user = response; // или response.user, зависит от API
+      
+      setUser(user);
+      // Если API возвращает токен
+      if (response.token) {
+        setToken(response.token);
+        localStorage.setItem("token", response.token);
+      }
+      
+      localStorage.setItem("user", JSON.stringify(user));
+      
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
   };
 
   const logout = () => {
     setUser(null);
     setToken(null);
-    setIsAdmin(false);
     localStorage.removeItem("user");
     localStorage.removeItem("token");
-  };
-
-  // Специальная функция для входа админа
-  const adminLogin = () => {
-    const adminUser = {
-      id: 999,
-      name: "admin",
-      email: "admin",
-      isAdmin: true
-    };
-    login(adminUser, "admin-token");
   };
 
   return (
     <AuthContext.Provider value={{ 
       user, 
       token, 
-      isAdmin,
+      loading,
       login, 
+      register, 
       logout,
-      adminLogin
+      isAuthenticated: !!user,
+      isAdmin: user?.isAdmin || false  // Добавляем isAdmin
     }}>
       {children}
     </AuthContext.Provider>

@@ -104,6 +104,10 @@ class TicketResponse(BaseModel):
     session_id: int
     seat_ids: List[int]
     total_price: float
+    original_price: Optional[float] = None
+    used_bonus: Optional[int] = 0
+    bonus_earned: Optional[int] = 0
+    bonus_balance: Optional[int] = None
     purchase_date: datetime
     status: str
     movie_title: Optional[str] = None
@@ -136,3 +140,22 @@ class UserResponse(BaseModel):
     email: str
     phone: Optional[str] = None
     registration_date: datetime
+
+class BookingCreate(BaseModel):
+    session_id: int
+    seat_ids: List[int]
+
+class BookingResponse(BaseModel):
+    id: int
+    session_id: int
+    seat_id: int
+    expires_at: datetime
+    status: str
+
+class TicketPurchase(BaseModel):
+    session_id: int
+    seat_ids: List[int]
+    customer_name: Optional[str] = None
+    user_id: Optional[int] = None
+    use_bonus: bool = False
+

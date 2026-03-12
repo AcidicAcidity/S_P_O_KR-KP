@@ -1,9 +1,9 @@
-// src/components/AdminDashboard.jsx
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import Header from "./Header";
+import { getRentalRequests, updateRentalStatus } from "../api/rentals";
 import "./AdminDashboard.css";
 
 // Импорт API функций
@@ -22,7 +22,9 @@ import {
   getTickets,
   refundTicket,
   clearRefundedTickets,
-  clearAllTickets
+  clearAllTickets,
+  getAllRentals,
+  clearAllRentals
 } from "../api/admin";
 
 function AdminDashboard() {
@@ -86,6 +88,12 @@ function AdminDashboard() {
               👥 Пользователи
             </button>
             <button 
+              className={activeTab === "rentals" ? "active" : ""}
+              onClick={() => setActiveTab("rentals")}
+            >
+              📋 Аренда залов
+            </button>
+            <button 
               className={activeTab === "tickets" ? "active" : ""}
               onClick={() => setActiveTab("tickets")}
             >
@@ -103,6 +111,7 @@ function AdminDashboard() {
           {activeTab === "sessions" && <SessionsTab />}
           {activeTab === "halls" && <HallsTab />}
           {activeTab === "users" && <UsersTab />}
+          {activeTab === "rentals" && <RentalsTab />}
           {activeTab === "tickets" && <TicketsTab />}
         </div>
       </div>
@@ -131,7 +140,6 @@ function MoviesTab() {
     trailer_url: ""
   });
 
-  // Загрузка фильмов
   useEffect(() => {
     loadMovies();
   }, []);
@@ -146,7 +154,7 @@ function MoviesTab() {
     } finally {
         setLoading(false);
     }
-    };
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -202,7 +210,7 @@ function MoviesTab() {
     } finally {
         setLoading(false);
     }
-    };
+  };
 
   const handleEdit = (movie) => {
     setEditingMovie(movie);
@@ -389,7 +397,7 @@ function MoviesTab() {
                 </div>
               <div className="modal-actions">
                 <button type="button" onClick={() => setShowModal(false)}>Отмена</button>
-                <button type="submit">{editingMovie ? "Сохранить" : "Создать"}</button>
+                <button type="submit" disabled={loading}>{editingMovie ? "Сохранить" : "Создать"}</button>
               </div>
             </form>
           </div>
@@ -422,23 +430,40 @@ function SessionsTab() {
   const loadData = async () => {
     try {
       setLoading(true);
-      console.log("Загружаем сеансы...");
+      console.log("📡 Загружаем сеансы...");
       
-      const [sessionsData, moviesData, hallsData] = await Promise.all([
-        getSessions(),
-        getAllMovies(),
-        getHalls()
-      ]);
+      // Загружаем по отдельности, чтобы увидеть, где ошибка
+      let sessionsData = [];
+      let moviesData = [];
+      let hallsData = [];
       
-      console.log("Сеансы:", sessionsData);
-      console.log("Фильмы:", moviesData);
-      console.log("Залы:", hallsData);
+      try {
+        sessionsData = await getSessions();
+        console.log("✅ Сеансы загружены:", sessionsData);
+      } catch (err) {
+        console.error("❌ Ошибка загрузки сеансов:", err);
+      }
+      
+      try {
+        moviesData = await getAllMovies();
+        console.log("✅ Фильмы загружены:", moviesData);
+      } catch (err) {
+        console.error("❌ Ошибка загрузки фильмов:", err);
+      }
+      
+      try {
+        hallsData = await getHalls();
+        console.log("✅ Залы загружены:", hallsData);
+      } catch (err) {
+        console.error("❌ Ошибка загрузки залов:", err);
+      }
       
       setSessions(Array.isArray(sessionsData) ? sessionsData : []);
       setMovies(Array.isArray(moviesData) ? moviesData : []);
       setHalls(Array.isArray(hallsData) ? hallsData : []);
+      
     } catch (err) {
-      console.error("❌ Ошибка загрузки:", err);
+      console.error("❌ Общая ошибка:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -920,6 +945,379 @@ function UsersTab() {
   );
 }
 
+// ==================== RENTALS TAB ====================
+function RentalsTab() {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filter, setFilter] = useState("all");
+  const [showConfirmClear, setShowConfirmClear] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    confirmed: 0,
+    completed: 0,
+    cancelled: 0,
+    totalRevenue: 0
+  });
+
+  useEffect(() => {
+    loadRequests();
+  }, []);
+
+  useEffect(() => {
+    if (requests.length > 0) {
+      const newStats = {
+        total: requests.length,
+        pending: requests.filter(r => r.status === 'pending').length,
+        confirmed: requests.filter(r => r.status === 'confirmed').length,
+        completed: requests.filter(r => r.status === 'completed').length,
+        cancelled: requests.filter(r => r.status === 'cancelled').length,
+        totalRevenue: requests.reduce((sum, r) => {
+          // Проверяем разные возможные названия поля суммы
+          const price = r.total_price || r.totalPrice || r.price || 0;
+          return sum + (parseFloat(price) || 0);
+        }, 0)
+      };
+      setStats(newStats);
+    } else {
+      setStats({
+        total: 0,
+        pending: 0,
+        confirmed: 0,
+        completed: 0,
+        cancelled: 0,
+        totalRevenue: 0
+      });
+    }
+  }, [requests]);
+
+  const loadRequests = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getAllRentals();
+      console.log("📦 Полученные заявки:", data); // Для отладки
+      setRequests(data || []);
+    } catch (err) {
+      console.error("❌ Ошибка загрузки заявок:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      await updateRentalStatus(id, newStatus);
+      setSuccessMessage(`Статус заявки успешно изменен на ${newStatus}`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+      loadRequests();
+    } catch (err) {
+      setError("Ошибка при изменении статуса: " + err.message);
+    }
+  };
+
+  const handleClearAllRentals = async () => {
+    setLoading(true);
+    try {
+      const result = await clearAllRentals();
+      setShowConfirmClear(false);
+      setSuccessMessage(result.message || "Все заявки успешно удалены");
+      setTimeout(() => setSuccessMessage(null), 3000);
+      loadRequests();
+    } catch (err) {
+      console.error("❌ Ошибка при очистке:", err);
+      setError("Ошибка при очистке заявок: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredRequests = requests.filter(req => 
+    filter === "all" ? true : req.status === filter
+  );
+
+  const getStatusBadge = (status) => {
+    switch(status) {
+      case 'pending': return <span className="status-badge pending">⏳ Ожидает</span>;
+      case 'confirmed': return <span className="status-badge confirmed">✅ Подтверждён</span>;
+      case 'completed': return <span className="status-badge completed">🏁 Завершён</span>;
+      case 'cancelled': return <span className="status-badge cancelled">❌ Отменён</span>;
+      default: return <span className="status-badge">{status}</span>;
+    }
+  };
+
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return "—";
+    try {
+      return new Date(dateStr).toLocaleString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  // Функция для безопасного получения суммы
+  const getRentalPrice = (rental) => {
+    return rental.total_price || rental.totalPrice || rental.price || 0;
+  };
+
+  if (loading && requests.length === 0) {
+    return <div className="admin-loading">Загрузка заявок...</div>;
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="admin-tab"
+    >
+      <div className="tab-header">
+        <h2>Заявки на аренду залов</h2>
+        <div className="header-actions">
+          <button 
+            className="refresh-btn" 
+            onClick={loadRequests} 
+            disabled={loading}
+            title="Обновить"
+          >
+            {loading ? "🔄" : "⭮"}
+          </button>
+          <button 
+            className="clear-all-btn"
+            onClick={() => setShowConfirmClear(true)}
+            disabled={loading || requests.length === 0}
+            title={requests.length === 0 ? "Нет заявок для удаления" : "Очистить все заявки"}
+          >
+            🗑️ Очистить все заявки {requests.length > 0 && `(${requests.length})`}
+          </button>
+        </div>
+      </div>
+
+      {/* Сообщения об успехе/ошибке */}
+      {successMessage && (
+        <div className="admin-success">
+          {successMessage}
+        </div>
+      )}
+
+      {error && (
+        <div className="admin-error">
+          {error}
+        </div>
+      )}
+
+      {/* Статистика */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <span className="stat-label">Всего заявок</span>
+          <span className="stat-value">{stats.total}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Ожидают</span>
+          <span className="stat-value">{stats.pending}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Подтверждены</span>
+          <span className="stat-value">{stats.confirmed}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Завершены</span>
+          <span className="stat-value">{stats.completed}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Отменены</span>
+          <span className="stat-value">{stats.cancelled}</span>
+        </div>
+        <div className="stat-card revenue">
+          <span className="stat-label">Выручка</span>
+          <span className="stat-value">{stats.totalRevenue.toLocaleString()} ₽</span>
+        </div>
+      </div>
+
+      {/* Фильтры */}
+      <div className="filters-bar">
+        <div className="status-filters">
+          <button 
+            className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
+            onClick={() => setFilter('all')}
+            disabled={loading}
+          >
+            Все ({stats.total})
+          </button>
+          <button 
+            className={`filter-btn ${filter === 'pending' ? 'active' : ''}`}
+            onClick={() => setFilter('pending')}
+            disabled={loading}
+          >
+            Ожидают ({stats.pending})
+          </button>
+          <button 
+            className={`filter-btn ${filter === 'confirmed' ? 'active' : ''}`}
+            onClick={() => setFilter('confirmed')}
+            disabled={loading}
+          >
+            Подтверждены ({stats.confirmed})
+          </button>
+          <button 
+            className={`filter-btn ${filter === 'completed' ? 'active' : ''}`}
+            onClick={() => setFilter('completed')}
+            disabled={loading}
+          >
+            Завершены ({stats.completed})
+          </button>
+          <button 
+            className={`filter-btn ${filter === 'cancelled' ? 'active' : ''}`}
+            onClick={() => setFilter('cancelled')}
+            disabled={loading}
+          >
+            Отменены ({stats.cancelled})
+          </button>
+        </div>
+      </div>
+
+      {filteredRequests.length === 0 ? (
+        <div className="admin-empty">
+          {requests.length === 0 ? "Нет заявок на аренду" : "Нет заявок с выбранным статусом"}
+        </div>
+      ) : (
+        <div className="rentals-table">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>№ договора</th>
+                <th>Клиент</th>
+                <th>Зал</th>
+                <th>Дата и время</th>
+                <th>Длительность</th>
+                <th>Сумма</th>
+                <th>Статус</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRequests.map(req => (
+                <tr key={`rental-${req.id}`}>
+                  <td className="contract-number"><strong>{req.contract_number}</strong></td>
+                  <td>
+                    <div className="client-info">
+                      <strong>{req.renter?.full_name || 'Не указан'}</strong>
+                      <div>{req.renter?.phone || ''}</div>
+                      <div className="client-email">{req.renter?.email || ''}</div>
+                      {req.renter?.company_name && (
+                        <div className="client-company">🏢 {req.renter.company_name}</div>
+                      )}
+                    </div>
+                  </td>
+                  <td>{req.hall_name || `Зал ${req.hall_id}`}</td>
+                  <td>
+                    <div>{formatDateTime(req.start_time)}</div>
+                    <div className="time-to">{formatDateTime(req.end_time)}</div>
+                  </td>
+                  <td>{req.duration_hours || '?'} ч</td>
+                  <td className="amount">
+                    {getRentalPrice(req) ? `${Number(getRentalPrice(req)).toLocaleString()} ₽` : '0 ₽'}
+                  </td>
+                  <td>{getStatusBadge(req.status)}</td>
+                  <td>
+                    {req.status === 'pending' && (
+                      <div className="action-buttons">
+                        <button 
+                          className="confirm-btn"
+                          onClick={() => handleStatusChange(req.id, 'confirmed')}
+                          title="Подтвердить"
+                          disabled={loading}
+                        >
+                          ✅
+                        </button>
+                        <button 
+                          className="cancel-btn"
+                          onClick={() => handleStatusChange(req.id, 'cancelled')}
+                          title="Отклонить"
+                          disabled={loading}
+                        >
+                          ❌
+                        </button>
+                      </div>
+                    )}
+                    {req.status === 'confirmed' && (
+                      <button 
+                        className="complete-btn"
+                        onClick={() => handleStatusChange(req.id, 'completed')}
+                        title="Завершить"
+                        disabled={loading}
+                      >
+                        Завершить
+                      </button>
+                    )}
+                    {req.status === 'completed' && (
+                      <span className="completed-label">Завершено</span>
+                    )}
+                    {req.status === 'cancelled' && (
+                      <span className="cancelled-label">Отменено</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Модалка подтверждения очистки */}
+      <AnimatePresence>
+        {showConfirmClear && (
+          <div className="modal-overlay" onClick={() => setShowConfirmClear(false)}>
+            <motion.div 
+              className="confirm-modal"
+              onClick={e => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+            >
+              <h3>⚠️ Очистить все заявки?</h3>
+              <p>
+                Это действие <strong>безвозвратно удалит</strong> все заявки на аренду из базы данных, включая:
+              </p>
+              <ul style={{ color: '#ccc', marginBottom: '20px', paddingLeft: '20px' }}>
+                <li>{stats.total} договоров аренды</li>
+                <li>Данные всех арендаторов</li>
+                <li>Историю всех заявок</li>
+              </ul>
+              <p style={{ color: '#ff6b6b', fontWeight: 'bold' }}>
+                Отменить это действие будет невозможно!
+              </p>
+              <div className="modal-buttons">
+                <button 
+                  className="cancel-btn"
+                  onClick={() => setShowConfirmClear(false)}
+                  disabled={loading}
+                >
+                  Отмена
+                </button>
+                <button 
+                  className="confirm-btn"
+                  onClick={handleClearAllRentals}
+                  disabled={loading}
+                >
+                  {loading ? 'Удаление...' : 'Да, очистить всё'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
 // ==================== TICKETS TAB ====================
 function TicketsTab() {
   const [tickets, setTickets] = useState([]);
@@ -1002,9 +1400,9 @@ function TicketsTab() {
         setLoading(false);
         setShowClearMenu(false);
     }
-    };
+  };
 
-    const handleClearAll = async () => {
+  const handleClearAll = async () => {
     if (!window.confirm("Удалить ВСЕ билеты?")) {
         return;
     }
@@ -1015,19 +1413,7 @@ function TicketsTab() {
         
         console.log("Удаляем все билеты...");
         
-        const response = await fetch(`http://localhost:8000/admin/tickets/clear-all`, {
-        method: "DELETE",
-        headers: {
-            "Content-Type": "application/json",
-        }
-        });
-        
-        if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Ошибка при очистке");
-        }
-        
-        const result = await response.json();
+        const result = await clearAllTickets();
         console.log("Результат:", result);
         
         await loadTickets();
@@ -1042,7 +1428,7 @@ function TicketsTab() {
         setLoading(false);
         setShowClearMenu(false);
     }
-    };
+  };
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
@@ -1080,7 +1466,7 @@ function TicketsTab() {
             disabled={loading}
             title="Обновить список"
           >
-            {loading ? "🗘" : "⭮"}
+            {loading ? "🔄" : "⭮"}
           </button>
           
           <div className="clear-menu-container">
@@ -1168,7 +1554,7 @@ function TicketsTab() {
                       disabled={processingId === ticket.id}
                       title="Вернуть билет (освободить место)"
                     >
-                      {processingId === ticket.id ? "🗘" : "↩"}
+                      {processingId === ticket.id ? "🔄" : "↩"}
                     </button>
                   )}
                 </td>

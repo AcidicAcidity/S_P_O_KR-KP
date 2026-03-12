@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import movies, sessions, tickets, auth, admin
+from app.routers import movies, sessions, tickets, auth, admin, bookings, rentals
+from app import scheduler
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -28,6 +29,8 @@ app.include_router(sessions.router)
 app.include_router(tickets.router)
 app.include_router(auth.router)
 app.include_router(admin.router)
+app.include_router(bookings.router)
+app.include_router(rentals.router)
 
 @app.get("/")
 async def root():

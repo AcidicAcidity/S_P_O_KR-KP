@@ -18,6 +18,11 @@ body {
   100% { background-position: 0% 50%; }
 }
 
+@keyframes glowSuccess {
+  0%, 100% { box-shadow: 0 0 20px rgba(76, 175, 80, 0.5); }
+  50% { box-shadow: 0 0 30px rgba(76, 175, 80, 0.8); }
+}
+
 .app {
   min-height: 100vh;
 }
@@ -364,21 +369,20 @@ body {
 }
 
 .buy-btn {
-  background: #b10000;
+  background: linear-gradient(135deg, #7b2cff, #c62828);
   padding: 14px 35px;
   border-radius: 40px;
   border: none;
   color: white;
   font-size: 16px;
   cursor: pointer;
-
-  box-shadow: 0 0 25px rgba(255,0,0,0.4);
+  box-shadow: 0 0 25px rgba(123,44,255,0.4);
   transition: 0.3s ease;
 }
 
 .buy-btn:hover {
-  background: #ff0000;
-  box-shadow: 0 0 40px rgba(255,0,0,0.8);
+  background: linear-gradient(135deg, #8c3cff, #d73838);
+  box-shadow: 0 0 40px rgba(123,44,255,0.8);
   transform: translateY(-3px);
 }
 
@@ -2235,20 +2239,31 @@ input, select {
 }
 
 .purchase-message {
-  margin-top: 20px;
-  padding: 15px;
+  margin-top: 15px;
+  padding: 12px 24px;
   border-radius: 12px;
   text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .purchase-message.success {
-  background: rgba(76, 175, 80, 0.2);
-  color: #4caf50;
+  background: rgba(76, 175, 80, 0.3) !important;
+  color: #4caf50 !important;
+  border: 2px solid #4caf50 !important;
+  box-shadow: 0 0 20px rgba(76, 175, 80, 0.5) !important;
+  animation: glowSuccess 2s ease-in-out !important;
 }
 
 .purchase-message.error {
-  background: rgba(244, 67, 54, 0.2);
-  color: #f44336;
+  background: rgba(244, 67, 54, 0.3) !important;
+  color: #f44336 !important;
+  border: 2px solid #f44336 !important;
+  box-shadow: 0 0 20px rgba(244, 67, 54, 0.5) !important;
 }
 
 .zoom-level {
@@ -2496,4 +2511,440 @@ input, select {
   align-items: center;
   color: white;
   font-weight: 500;
+}
+
+/* Бронирование */
+
+/* Забронированные места */
+.seat.booked {
+  background: rgba(255, 165, 0, 0.3) !important;
+  border: 2px solid #ffa500 !important;
+  color: white !important;
+  cursor: not-allowed;
+}
+
+/* Легенда для брони */
+.legend-color.booked {
+  background: rgba(255, 165, 0, 0.3);
+  border: 2px solid #ffa500;
+}
+
+/* Блок бронирования */
+.booking-section {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.booking-btn {
+  padding: 12px 30px;
+  background: linear-gradient(135deg, #ffa500, #ff8c00);
+  border: none;
+  border-radius: 30px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 20px rgba(255, 165, 0, 0.3);
+}
+
+.booking-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(255, 165, 0, 0.5);
+}
+
+.booking-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.booking-hint {
+  margin-top: 8px;
+  color: #aaa;
+  font-size: 12px;
+}
+
+.booking-info {
+  margin: 20px 0;
+  padding: 15px;
+  background: rgba(255, 165, 0, 0.1);
+  border: 1px solid #ffa500;
+  border-radius: 10px;
+  color: #ffa500;
+  text-align: center;
+}
+
+.booking-timer {
+  font-size: 18px;
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+.cancel-booking-btn {
+  padding: 8px 16px;
+  background: rgba(255, 0, 0, 0.2);
+  border: 1px solid #ff4444;
+  border-radius: 20px;
+  color: #ff4444;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cancel-booking-btn:hover {
+  background: rgba(255, 0, 0, 0.3);
+}
+
+/* Бонусы */
+.bonus-section {
+  margin: 20px 0;
+  padding: 20px;
+  background: rgba(255, 215, 0, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 15px;
+}
+
+.bonus-balance {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bonus-balance strong {
+  color: #ffd700;
+  font-size: 18px;
+}
+
+.bonus-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: white;
+}
+
+.bonus-checkbox input {
+  width: 18px;
+  height: 18px;
+  accent-color: #ffd700;
+}
+
+.bonus-discount {
+  margin-left: 8px;
+  color: #4caf50;
+  font-size: 14px;
+}
+
+.original-price {
+  text-decoration: line-through;
+  color: #aaa;
+  font-size: 16px;
+}
+
+.bonus-discount-text {
+  color: #4caf50;
+  font-size: 16px;
+}
+
+.checkout-hint {
+  margin-top: 10px;
+  color: #ffa500;
+  font-size: 14px;
+}
+
+.guest-hint {
+  margin-top: 10px;
+  color: #aaa;
+  font-size: 12px;
+  text-align: center;
+  font-style: italic;
+}
+
+.booking-hint {
+  margin-top: 5px;
+  color: #ffa500;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Добавь к стилям хедера */
+.user-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 30px;
+  transition: all 0.3s ease;
+}
+
+.user-box:hover {
+  background: rgba(123, 44, 255, 0.2);
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #7b2cff, #c62828);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  color: white;
+  text-transform: uppercase;
+}
+
+.user-greeting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  font-weight: 500;
+}
+
+.admin-badge {
+  padding: 2px 6px;
+  background: linear-gradient(135deg, #ffd700, #ffa500);
+  border-radius: 12px;
+  color: #000;
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+.logout-btn:hover {
+  background: rgba(255, 107, 107, 0.2);
+  border-color: #ff6b6b;
+}
+
+/* Стили для вкладки аренды */
+.filter-buttons {
+  display: flex;
+  gap: 10px;
+  margin: 0 20px;
+  flex-wrap: wrap;
+}
+
+.filter-buttons button {
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  color: #aaa;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 13px;
+}
+
+.filter-buttons button:hover {
+  background: rgba(123, 44, 255, 0.2);
+  color: white;
+}
+
+.filter-buttons button.active {
+  background: linear-gradient(135deg, #7b2cff, #c62828);
+  color: white;
+  border-color: transparent;
+}
+
+/* Статус бейджи */
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.pending {
+  background: rgba(255, 165, 0, 0.2);
+  color: #ffa500;
+}
+
+.status-badge.confirmed {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.status-badge.completed {
+  background: rgba(33, 150, 243, 0.2);
+  color: #2196f3;
+}
+
+.status-badge.cancelled {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+}
+
+/* Кнопки действий */
+.confirm-btn, .cancel-btn, .complete-btn {
+  padding: 6px 12px;
+  margin: 0 4px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 16px;
+}
+
+.confirm-btn {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.confirm-btn:hover {
+  background: rgba(76, 175, 80, 0.3);
+  transform: scale(1.1);
+}
+
+.cancel-btn {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+}
+
+.cancel-btn:hover {
+  background: rgba(244, 67, 54, 0.3);
+  transform: scale(1.1);
+}
+
+.complete-btn {
+  background: rgba(33, 150, 243, 0.2);
+  color: #2196f3;
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 15px;
+}
+
+.complete-btn:hover {
+  background: rgba(33, 150, 243, 0.3);
+}
+
+/* Добавьте в AdminDashboard.css */
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.clear-all-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.3s;
+}
+
+.clear-all-btn:hover {
+  background: #c82333;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 15px;
+  text-align: center;
+}
+
+.stat-card.revenue {
+  background: rgba(255, 215, 0, 0.1);
+  border: 1px solid #ffd700;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.9rem;
+  color: #aaa;
+  margin-bottom: 5px;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #ffd700;
+}
+
+.amount {
+  font-weight: bold;
+  color: #ffd700;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.confirm-modal {
+  background: #1a1a1a;
+  border-radius: 12px;
+  padding: 25px;
+  max-width: 400px;
+  width: 90%;
+  border: 1px solid #333;
+}
+
+.confirm-modal h3 {
+  color: #ffd700;
+  margin-bottom: 15px;
+}
+
+.confirm-modal p {
+  color: #ccc;
+  margin-bottom: 25px;
+  line-height: 1.5;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.cancel-btn {
+  background: #333;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.confirm-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.confirm-btn:hover {
+  background: #c82333;
+}
+
+.confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
