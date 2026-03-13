@@ -43,3 +43,16 @@
 ```
 ~/S_O_P_KR-KP/BackEnd> uvicorn app.main:app --reload
 ```
+
+## Важная ремарка
+С учётом того что бекэнд был переделан, необходимо установить библиотеки, которые ещё не были добавлены в requirements.txt
+
+```
+~/S_O_P_KR-KP/BackEnd> pip uninstall passlib bcrypt -y
+```
+```
+~/S_O_P_KR-KP/BackEnd>pip install passlib[bcrypt]
+```
+```
+~/S_O_P_KR-KP/BackEnd>pip install bcrypt==3.2.0
+```

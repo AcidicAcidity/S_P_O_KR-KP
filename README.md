@@ -38,3 +38,6 @@ pg8000
 python-dotenv
 pydantic
 ```
+
+# Инструкция
+Инструкция по установке BackEnd части находится в папке BackEnd в файле README.md
