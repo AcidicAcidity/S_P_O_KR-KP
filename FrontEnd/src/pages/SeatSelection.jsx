@@ -76,17 +76,17 @@ function SeatSelection() {
     if (savedBooking && selectedSession) {
       try {
         const booking = JSON.parse(savedBooking);
-        
+
         // Проверяем, что бронь относится к текущему сеансу
         if (booking.sessionId === selectedSession.session_id) {
           const now = Date.now();
-          
+
           // Если бронь ещё активна
           if (booking.expiresAt > now) {
             setBookedSeats(booking.seatIds);
             setBookingId(booking.bookingId);
             setBookingExpiry(booking.expiresAt);
-          } 
+          }
           // Если бронь истекла, удаляем её
           else {
             sessionStorage.removeItem('currentBooking');
@@ -112,7 +112,7 @@ function SeatSelection() {
     const updateTimer = () => {
       const now = Date.now();
       const diff = bookingExpiry - now;
-      
+
       if (diff <= 0) {
         setTimeLeft("00:00");
         clearBooking();
@@ -131,7 +131,7 @@ function SeatSelection() {
 
     // Запускаем интервал
     const interval = setInterval(updateTimer, 1000);
-    
+
     return () => clearInterval(interval);
   }, [bookingExpiry]);
 
@@ -181,12 +181,12 @@ function SeatSelection() {
 
   const toggleSeat = (seat) => {
     if (!seat.available) return;
-    
+
     if (user && bookedSeats.length > 0) {
       alert("Сначала оплатите или отмените текущую бронь");
       return;
     }
-    
+
     setSelectedSeats((prev) =>
       prev.includes(seat.id) ? prev.filter((id) => id !== seat.id) : [...prev, seat.id]
     );
@@ -199,20 +199,20 @@ function SeatSelection() {
       return;
     }
     if (selectedSeats.length === 0) return;
-    
+
     try {
       const bookings = await createBooking(
         selectedSession.session_id,
         selectedSeats,
         user.id
       );
-      
+
       const expiresAt = Date.now() + 15 * 60 * 1000;
-      
+
       setBookedSeats(selectedSeats);
       setBookingId(bookings[0]?.id || null);
       setBookingExpiry(expiresAt);
-      
+
     } catch (err) {
       alert("Ошибка бронирования: " + err.message);
     }
@@ -244,17 +244,17 @@ function SeatSelection() {
           customerName: user?.name || null,
           usedBonus: paymentResult.usedBonus || 0
         });
-        
+
         let message = "✅ Билеты успешно куплены!";
         if (result.bonus_earned) {
           message += ` Начислено ${result.bonus_earned} бонусов!`;
         }
         setPurchaseMessage(message);
-        
+
         await clearBooking();
         setSelectedSeats([]);
         setBonusUsed(0);
-        
+
         const updated = await getSessionSeats(selectedSession.session_id);
         setSessionData(updated);
       } catch (err) {
@@ -323,8 +323,8 @@ function SeatSelection() {
       <Header />
 
       <div className="seat-page">
-        <motion.button 
-          className="back-button" 
+        <motion.button
+          className="back-button"
           onClick={goBack}
           whileHover={{ x: -5 }}
           whileTap={{ scale: 0.95 }}
@@ -333,12 +333,12 @@ function SeatSelection() {
         </motion.button>
 
         <div className="zoom-controls">
-          <motion.button 
+          <motion.button
             onClick={() => setZoom(z => Math.min(z + 0.1, 1.3))}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
           >+</motion.button>
-          <motion.button 
+          <motion.button
             onClick={() => setZoom(z => Math.max(z - 0.1, 0.8))}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
@@ -346,13 +346,13 @@ function SeatSelection() {
           <div className="zoom-level">{Math.round(zoom * 100)}%</div>
         </div>
 
-        <motion.div 
+        <motion.div
           className="session-switcher"
           initial={{ x: 20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
-          <h3>🎬 СЕАНСЫ</h3>
+          <h3>СЕАНСЫ</h3>
           <div className="sessions-list">
             {sessions.map((s, i) => (
               <motion.div
@@ -376,25 +376,25 @@ function SeatSelection() {
         </motion.div>
 
         <div className="seat-container">
-          <motion.h2 
+          <motion.h2
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
           >
             {movieData?.title || movie.title}
           </motion.h2>
 
-          <motion.div 
+          <motion.div
             className="badges"
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.1 }}
           >
-            <span className="hall-badge">🏛️ {selectedSession?.hall_name}</span>
-            <span className="time-badge">⏰ {selectedSession?.time}</span>
-            <span className="price-badge">💰 {sessionData?.price}₽</span>
+            <span className="hall-badge">{selectedSession?.hall_name}</span>
+            <span className="time-badge">{selectedSession?.time}</span>
+            <span className="price-badge">{sessionData?.price}₽</span>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             className="seats-legend"
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -406,7 +406,7 @@ function SeatSelection() {
             {user && <div className="legend-item"><span className="legend-color booked" /> Забронировано</div>}
           </motion.div>
 
-          <motion.div 
+          <motion.div
             className="screen"
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
@@ -417,7 +417,7 @@ function SeatSelection() {
 
           <AnimatePresence mode="wait">
             {loading ? (
-              <motion.div 
+              <motion.div
                 key="loading"
                 className="loading-message"
                 initial={{ opacity: 0 }}
@@ -428,7 +428,7 @@ function SeatSelection() {
                 <p>Загрузка схемы зала...</p>
               </motion.div>
             ) : error ? (
-              <motion.div 
+              <motion.div
                 key="error"
                 className="error-message"
                 initial={{ opacity: 0 }}
@@ -438,7 +438,7 @@ function SeatSelection() {
                 {error}
               </motion.div>
             ) : sessionData && (
-              <motion.div 
+              <motion.div
                 key="hall"
                 className="hall-wrapper"
                 initial={{ opacity: 0, y: 20 }}
@@ -455,34 +455,34 @@ function SeatSelection() {
           <AnimatePresence>
             {/* Блок для авторизованных пользователей (бронь) */}
             {user && selectedSeats.length > 0 && !bookedSeats.length && (
-              <motion.div 
+              <motion.div
                 className="booking-section"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
               >
-                <motion.button 
+                <motion.button
                   className="booking-btn"
                   onClick={handleBooking}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  🕒 Забронировать на 15 мин
+                  Забронировать на 15 мин
                 </motion.button>
-                <p className="booking-hint">Бронь доступна только авторизованным</p>
+                <p className="booking-hint">Забронируйте место, чтобы никто его не занял</p>
               </motion.div>
             )}
 
             {user && bookedSeats.length > 0 && (
-              <motion.div 
+              <motion.div
                 className="booking-info"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
               >
                 <p>✅ Забронировано</p>
-                <div className="booking-timer">⏰ {timeLeft || "00:00"}</div>
-                <motion.button 
+                <div className="booking-timer">{timeLeft || "00:00"}</div>
+                <motion.button
                   className="cancel-booking-btn"
                   onClick={handleCancelBooking}
                   whileHover={{ scale: 1.05 }}
@@ -495,7 +495,7 @@ function SeatSelection() {
 
             {/* Блок покупки (доступен всем) */}
             {selectedSeats.length > 0 && (
-              <motion.div 
+              <motion.div
                 className="checkout"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -520,23 +520,17 @@ function SeatSelection() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  {isPurchasing ? "⏳" : "💳 Купить билеты"}
+                  {isPurchasing ? "..." : "Купить билеты"}
                 </motion.button>
-                
-                {!user && (
-                  <p className="guest-hint">👤 Покупка без регистрации</p>
-                )}
-                
-                {user && bookedSeats.length === 0 && selectedSeats.length > 0 && (
-                  <p className="booking-hint">Или забронируйте места выше</p>
-                )}
+
+
               </motion.div>
             )}
           </AnimatePresence>
 
           <AnimatePresence>
             {purchaseMessage && (
-              <motion.div 
+              <motion.div
                 className={`purchase-message ${purchaseMessage.includes('✅') ? 'success' : 'error'}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}

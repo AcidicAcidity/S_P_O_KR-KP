@@ -29,21 +29,21 @@ export default function ProfileModal({ isOpen, onClose }) {
         getUserBonus(user.id),
         getUserRentals(user.id)
       ]);
-      
+
       // Обработка билетов
       const now = new Date();
       const allTickets = ticketsData || [];
-      
+
       const activeTickets = allTickets.filter(t => {
         const sessionTime = new Date(t.session_time);
         return sessionTime > now && t.status !== 'Возврат';
       });
-      
+
       const historyTickets = allTickets.filter(t => {
         const sessionTime = new Date(t.session_time);
         return sessionTime <= now || t.status === 'Возврат';
       });
-      
+
       setTickets({
         all: allTickets,
         active: activeTickets,
@@ -52,23 +52,23 @@ export default function ProfileModal({ isOpen, onClose }) {
 
       // Обработка аренды
       const allRentals = rentalsData || [];
-      
+
       const activeRentals = allRentals.filter(r => {
         const endTime = new Date(r.end_time);
         return endTime > now && r.status !== 'cancelled' && r.status !== 'completed';
       });
-      
+
       const historyRentals = allRentals.filter(r => {
         const endTime = new Date(r.end_time);
         return endTime <= now || r.status === 'cancelled' || r.status === 'completed';
       });
-      
+
       setRentals({
         all: allRentals,
         active: activeRentals,
         history: historyRentals
       });
-      
+
       setBonus(bonusData?.bonus_points || 0);
     } catch (err) {
       setError(err.message);
@@ -138,19 +138,19 @@ export default function ProfileModal({ isOpen, onClose }) {
                 className={`tab-btn ${activeTab === 'active' ? 'active' : ''}`}
                 onClick={() => setActiveTab('active')}
               >
-                Активные 🎫
+                Активные
               </button>
               <button
                 className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
                 onClick={() => setActiveTab('history')}
               >
-                История 📜
+                История
               </button>
               <button
                 className={`tab-btn ${activeTab === 'rentals' ? 'active' : ''}`}
                 onClick={() => setActiveTab('rentals')}
               >
-                Аренда 🏢
+                Аренда
               </button>
             </div>
 
@@ -218,7 +218,7 @@ export default function ProfileModal({ isOpen, onClose }) {
                           <span>⏱️ {rental.duration_hours || '?'} ч</span>
                           <span>💰 {rental.total_price || rental.amount}₽</span>
                           <span className={`status-${rental.status}`}>
-                            {rental.status === 'confirmed' ? '✅ Подтверждено' : 
+                            {rental.status === 'confirmed' ? '✅ Подтверждено' :
                              rental.status === 'pending' ? '⏳ Ожидает оплаты' :
                              rental.status === 'paid' ? '💳 Оплачено' : '⏳ Ожидает'}
                           </span>
@@ -238,8 +238,8 @@ export default function ProfileModal({ isOpen, onClose }) {
                           <span>📅 {formatShortDate(rental.start_time)}</span>
                           <span>💰 {rental.total_price || rental.amount}₽</span>
                           <span className={`status-${rental.status}`}>
-                            {rental.status === 'completed' ? '✅ Завершено' : 
-                             rental.status === 'cancelled' ? '❌ Отменено' : 
+                            {rental.status === 'completed' ? '✅ Завершено' :
+                             rental.status === 'cancelled' ? '❌ Отменено' :
                              rental.status === 'paid' ? '💳 Оплачено' : rental.status}
                           </span>
                         </div>
