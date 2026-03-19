@@ -10,6 +10,7 @@ function MovieDetails() {
   const location = useLocation();
 
   const initialCard = location.state?.movieCard || null;
+  const fromSeats = location.state?.fromSeats || false; // Флаг, откуда пришли
 
   const [movie, setMovie] = useState(initialCard);
   const [sessions, setSessions] = useState(initialCard?.today_sessions || []);
@@ -89,10 +90,18 @@ function MovieDetails() {
     return null;
   };
 
+  // Функция для возврата на главную
+  const goBack = () => {
+    navigate("/");
+  };
+
   if (loading && !movie) {
     return (
       <div className="app">
         <Header />
+        <button className="back-button" onClick={goBack}>
+          ← На главную
+        </button>
         <div className="movie-details">
           <p>Загрузка фильма...</p>
         </div>
@@ -106,8 +115,8 @@ function MovieDetails() {
         <Header />
         <div className="not-found">
           <h1>Фильм не найден</h1>
-          <button onClick={() => navigate("/")} className="buy-btn">
-            Вернуться на главную
+          <button className="back-button" onClick={goBack}>
+            ← На главную
           </button>
         </div>
       </div>
@@ -135,6 +144,11 @@ function MovieDetails() {
   return (
     <div className="app">
       <Header />
+
+      {/* Кнопка назад - ведет на главную */}
+      <button className="back-button" onClick={goBack}>
+        ← На главную
+      </button>
 
       <motion.div 
         className="movie-details"
@@ -253,6 +267,7 @@ function MovieDetails() {
                     state: {
                       movie,
                       session: selectedSession,
+                      fromMovieDetails: true, // Указываем, откуда пришли
                     },
                   });
                 }}

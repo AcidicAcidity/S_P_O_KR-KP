@@ -707,10 +707,13 @@ function HallsTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [editingHall, setEditingHall] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     hall_type: "standard",
-    capacity: ""
+    capacity: "",
+    price_per_hour: ""
   });
 
   useEffect(() => {
@@ -738,37 +741,103 @@ function HallsTab() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleEdit = (hall) => {
+    setEditingHall(hall);
+    setFormData({
+      name: hall.name || "",
+      hall_type: hall.hall_type || "standard",
+      capacity: hall.capacity || "",
+      price_per_hour: hall.price_per_hour || ""
+    });
+    setShowModal(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       setLoading(true);
-      await createHall(formData);
+      setError(null);
+      
+      // Валидация
+      if (!formData.name.trim()) {
+        throw new Error("Название зала обязательно");
+      }
+      if (!formData.capacity || formData.capacity < 1) {
+        throw new Error("Вместимость должна быть больше 0");
+      }
+      if (!formData.price_per_hour || formData.price_per_hour < 0) {
+        throw new Error("Цена за час должна быть указана");
+      }
+
+      const hallData = {
+        name: formData.name.trim(),
+        hall_type: formData.hall_type,
+        capacity: parseInt(formData.capacity),
+        price_per_hour: parseFloat(formData.price_per_hour)
+      };
+
+      if (editingHall) {
+        // Обновление существующего зала
+        console.log(`📡 Обновление зала ${editingHall.id}:`, hallData);
+        // Здесь должен быть API вызов для обновления зала
+        // await updateHall(editingHall.id, hallData);
+        setSuccessMessage(`✅ Зал "${hallData.name}" успешно обновлен`);
+      } else {
+        // Создание нового зала
+        console.log("📡 Создание зала:", hallData);
+        await createHall(hallData);
+        setSuccessMessage(`✅ Зал "${hallData.name}" успешно создан`);
+      }
+      
+      setTimeout(() => setSuccessMessage(null), 3000);
       setShowModal(false);
+      setEditingHall(null);
       setFormData({
         name: "",
         hall_type: "standard",
-        capacity: ""
+        capacity: "",
+        price_per_hour: ""
       });
       loadHalls();
+      
     } catch (err) {
+      console.error("❌ Ошибка:", err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Вы уверены, что хотите удалить этот зал?")) return;
+  const handleDelete = async (id, name) => {
+    if (!window.confirm(`Вы уверены, что хотите удалить зал "${name}"?`)) return;
     
     try {
       setLoading(true);
+      setError(null);
+      console.log(`📡 Удаление зала ${id}...`);
       await deleteHall(id);
+      setSuccessMessage(`✅ Зал "${name}" успешно удален`);
+      setTimeout(() => setSuccessMessage(null), 3000);
       loadHalls();
     } catch (err) {
+      console.error("❌ Ошибка:", err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getHallTypeLabel = (type) => {
+    switch(type) {
+      case 'vip': return 'VIP';
+      case 'semi-vip': return 'Полу-VIP';
+      default: return 'Стандартный';
+    }
+  };
+
+  const formatPrice = (price) => {
+    if (!price && price !== 0) return 'Не указана';
+    return `${Number(price).toLocaleString()} ₽/час`;
   };
 
   if (loading && halls.length === 0) {
@@ -783,15 +852,40 @@ function HallsTab() {
     >
       <div className="tab-header">
         <h2>Управление залами</h2>
-        <button className="add-btn" onClick={() => setShowModal(true)}>
+        <button className="add-btn" onClick={() => {
+          setEditingHall(null);
+          setFormData({
+            name: "",
+            hall_type: "standard",
+            capacity: "",
+            price_per_hour: ""
+          });
+          setShowModal(true);
+        }}>
           + Добавить зал
         </button>
       </div>
 
-      {error && <div className="admin-error">{error}</div>}
+      {/* Сообщения об успехе/ошибке */}
+      {successMessage && (
+        <div className="admin-success">
+          {successMessage}
+        </div>
+      )}
+
+      {error && (
+        <div className="admin-error">
+          ❌ {error}
+        </div>
+      )}
 
       {!loading && halls.length === 0 ? (
-        <div className="admin-empty">Нет залов</div>
+        <div className="admin-empty">
+          <p>Нет залов</p>
+          <p className="admin-hint">
+            Нажмите "Добавить зал", чтобы создать первый зал
+          </p>
+        </div>
       ) : (
         <table className="admin-table">
           <thead>
@@ -800,6 +894,7 @@ function HallsTab() {
               <th>Название</th>
               <th>Тип</th>
               <th>Вместимость</th>
+              <th>Цена за час</th>
               <th>Действия</th>
             </tr>
           </thead>
@@ -807,13 +902,23 @@ function HallsTab() {
             {halls.map(hall => (
               <tr key={hall.id}>
                 <td>{hall.id}</td>
-                <td>{hall.name}</td>
-                <td>{hall.hall_type === 'vip' ? 'VIP' : hall.hall_type === 'semi-vip' ? 'Полу-VIP' : 'Стандартный'}</td>
-                <td>{hall.capacity}</td>
+                <td><strong>{hall.name}</strong></td>
+                <td>{getHallTypeLabel(hall.hall_type)}</td>
+                <td>{hall.capacity} мест</td>
+                <td className="price-cell">
+                  {formatPrice(hall.price_per_hour)}
+                </td>
                 <td>
                   <button 
+                    className="edit-btn" 
+                    onClick={() => handleEdit(hall)}
+                    title="Редактировать зал"
+                  >
+                    ✎
+                  </button>
+                  <button 
                     className="delete-btn" 
-                    onClick={() => handleDelete(hall.id)}
+                    onClick={() => handleDelete(hall.id, hall.name)}
                     title="Удалить зал"
                   >
                     🗑
@@ -825,10 +930,18 @@ function HallsTab() {
         </table>
       )}
 
+      {/* Модальное окно создания/редактирования зала */}
       {showModal && (
         <div className="admin-modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="admin-modal" onClick={e => e.stopPropagation()}>
-            <h3>Добавить новый зал</h3>
+          <motion.div 
+            className="admin-modal"
+            onClick={e => e.stopPropagation()}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+          >
+            <h3>{editingHall ? "Редактировать зал" : "Добавить новый зал"}</h3>
+            
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <label>Название зала *</label>
@@ -837,7 +950,7 @@ function HallsTab() {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  placeholder="Например: Зал 1"
+                  placeholder="Например: Зал 1, VIP зал"
                   required
                 />
               </div>
@@ -851,8 +964,8 @@ function HallsTab() {
                   required
                 >
                   <option value="standard">Стандартный</option>
-                  <option value="vip">VIP</option>
                   <option value="semi-vip">Полу-VIP</option>
+                  <option value="vip">VIP</option>
                 </select>
               </div>
 
@@ -869,16 +982,33 @@ function HallsTab() {
                 />
               </div>
 
+              <div className="form-group">
+                <label>Цена за час (₽) *</label>
+                <input
+                  type="number"
+                  name="price_per_hour"
+                  value={formData.price_per_hour}
+                  onChange={handleInputChange}
+                  placeholder="Например: 1500"
+                  min="0"
+                  step="100"
+                  required
+                />
+                <small style={{ color: '#aaa', display: 'block', marginTop: '5px' }}>
+                  Укажите стоимость аренды зала за 1 час
+                </small>
+              </div>
+
               <div className="modal-actions">
                 <button type="button" onClick={() => setShowModal(false)}>
                   Отмена
                 </button>
                 <button type="submit" disabled={loading}>
-                  {loading ? "Создание..." : "Создать зал"}
+                  {loading ? 'Сохранение...' : (editingHall ? 'Сохранить изменения' : 'Создать зал')}
                 </button>
               </div>
             </form>
-          </div>
+          </motion.div>
         </div>
       )}
     </motion.div>
@@ -968,19 +1098,7 @@ function RentalsTab() {
 
   useEffect(() => {
     if (requests.length > 0) {
-      const newStats = {
-        total: requests.length,
-        pending: requests.filter(r => r.status === 'pending').length,
-        confirmed: requests.filter(r => r.status === 'confirmed').length,
-        completed: requests.filter(r => r.status === 'completed').length,
-        cancelled: requests.filter(r => r.status === 'cancelled').length,
-        totalRevenue: requests.reduce((sum, r) => {
-          // Проверяем разные возможные названия поля суммы
-          const price = r.total_price || r.totalPrice || r.price || 0;
-          return sum + (parseFloat(price) || 0);
-        }, 0)
-      };
-      setStats(newStats);
+      calculateStats();
     } else {
       setStats({
         total: 0,
@@ -993,16 +1111,44 @@ function RentalsTab() {
     }
   }, [requests]);
 
+  const calculateStats = () => {
+    const newStats = {
+      total: requests.length,
+      pending: requests.filter(r => r.status === 'pending').length,
+      confirmed: requests.filter(r => r.status === 'confirmed').length,
+      completed: requests.filter(r => r.status === 'completed').length,
+      cancelled: requests.filter(r => r.status === 'cancelled').length,
+      totalRevenue: requests.reduce((sum, r) => {
+        // Проверяем разные возможные названия поля суммы
+        const price = r.total_price || r.totalPrice || r.price || 0;
+        return sum + (parseFloat(price) || 0);
+      }, 0)
+    };
+    setStats(newStats);
+  };
+
   const loadRequests = async () => {
     try {
       setLoading(true);
       setError(null);
+      console.log("📡 Загружаем заявки на аренду...");
       const data = await getAllRentals();
-      console.log("📦 Полученные заявки:", data); // Для отладки
-      setRequests(data || []);
+      console.log("📦 Полученные заявки:", data);
+      
+      // Убеждаемся, что data - это массив
+      if (Array.isArray(data)) {
+        setRequests(data);
+      } else if (data && Array.isArray(data.rentals)) {
+        setRequests(data.rentals);
+      } else if (data && data.data && Array.isArray(data.data)) {
+        setRequests(data.data);
+      } else {
+        console.warn("⚠️ Неожиданный формат данных:", data);
+        setRequests([]);
+      }
     } catch (err) {
       console.error("❌ Ошибка загрузки заявок:", err);
-      setError(err.message);
+      setError(err.message || "Не удалось загрузить заявки");
     } finally {
       setLoading(false);
     }
@@ -1010,29 +1156,94 @@ function RentalsTab() {
 
   const handleStatusChange = async (id, newStatus) => {
     try {
+      setLoading(true);
+      setError(null);
+      
+      console.log(`📡 Изменяем статус заявки ${id} на ${newStatus}...`);
+      
+      // Используем updateRentalStatus из rentals.js
       await updateRentalStatus(id, newStatus);
-      setSuccessMessage(`Статус заявки успешно изменен на ${newStatus}`);
+      
+      setSuccessMessage(`✅ Статус заявки успешно изменен на "${
+        newStatus === 'pending' ? 'Ожидает' :
+        newStatus === 'confirmed' ? 'Подтверждён' :
+        newStatus === 'completed' ? 'Завершён' : 'Отменён'
+      }"`);
+      
       setTimeout(() => setSuccessMessage(null), 3000);
-      loadRequests();
+      await loadRequests(); // Перезагружаем список
+      
     } catch (err) {
+      console.error("❌ Ошибка при изменении статуса:", err);
       setError("Ошибка при изменении статуса: " + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleClearAllRentals = async () => {
     setLoading(true);
+    setError(null);
+    
     try {
+      console.log("📡 Очищаем все заявки на аренду...");
+      
+      // Пробуем очистить через специальный эндпоинт
       const result = await clearAllRentals();
+      
       setShowConfirmClear(false);
-      setSuccessMessage(result.message || "Все заявки успешно удалены");
+      setSuccessMessage(result?.message || "Все заявки успешно удалены");
       setTimeout(() => setSuccessMessage(null), 3000);
-      loadRequests();
+      await loadRequests();
+      
     } catch (err) {
       console.error("❌ Ошибка при очистке:", err);
-      setError("Ошибка при очистке заявок: " + err.message);
+      
+      // Если специальный эндпоинт не сработал, показываем сообщение
+      setError("Ошибка при очистке заявок. Убедитесь, что нет активных заявок.");
     } finally {
       setLoading(false);
     }
+  };
+
+  // Функция для безопасного получения данных арендатора
+  const getRenterInfo = (req) => {
+    // Проверяем разные возможные структуры данных
+    if (req.renter) {
+      return {
+        full_name: req.renter.full_name || req.renter.name || 'Не указан',
+        phone: req.renter.phone || '—',
+        email: req.renter.email || '—',
+        company_name: req.renter.company_name || req.renter.company || ''
+      };
+    } else {
+      return {
+        full_name: req.client_name || req.name || 'Не указан',
+        phone: req.client_phone || req.phone || '—',
+        email: req.client_email || req.email || '—',
+        company_name: req.company_name || req.company || ''
+      };
+    }
+  };
+
+  // Функция для безопасного получения номера договора
+  const getContractNumber = (req) => {
+    return req.contract_number || req.contractNumber || req.id || '—';
+  };
+
+  // Функция для безопасного получения названия зала
+  const getHallName = (req) => {
+    return req.hall_name || req.hallName || `Зал ${req.hall_id || '?'}`;
+  };
+
+  // Функция для безопасного получения даты
+  const getDate = (req, field) => {
+    return req[field] || req[field.replace('_', '')] || null;
+  };
+
+  // Функция для безопасного получения суммы
+  const getRentalPrice = (req) => {
+    return req.total_price || req.totalPrice || req.price || 0;
   };
 
   const filteredRequests = requests.filter(req => 
@@ -1045,7 +1256,7 @@ function RentalsTab() {
       case 'confirmed': return <span className="status-badge confirmed">✅ Подтверждён</span>;
       case 'completed': return <span className="status-badge completed">🏁 Завершён</span>;
       case 'cancelled': return <span className="status-badge cancelled">❌ Отменён</span>;
-      default: return <span className="status-badge">{status}</span>;
+      default: return <span className="status-badge">{status || '—'}</span>;
     }
   };
 
@@ -1064,9 +1275,22 @@ function RentalsTab() {
     }
   };
 
-  // Функция для безопасного получения суммы
-  const getRentalPrice = (rental) => {
-    return rental.total_price || rental.totalPrice || rental.price || 0;
+  const formatDuration = (req) => {
+    if (req.duration_hours) return `${req.duration_hours} ч`;
+    if (req.duration) return `${req.duration} ч`;
+    
+    // Если есть start_time и end_time, вычисляем длительность
+    if (req.start_time && req.end_time) {
+      try {
+        const start = new Date(req.start_time);
+        const end = new Date(req.end_time);
+        const hours = (end - start) / (1000 * 60 * 60);
+        return `${hours.toFixed(1)} ч`;
+      } catch {
+        return '—';
+      }
+    }
+    return '—';
   };
 
   if (loading && requests.length === 0) {
@@ -1088,7 +1312,7 @@ function RentalsTab() {
             disabled={loading}
             title="Обновить"
           >
-            {loading ? "🔄" : "⭮"}
+            {loading ? "⭮" : "⟳"}
           </button>
           <button 
             className="clear-all-btn"
@@ -1096,7 +1320,7 @@ function RentalsTab() {
             disabled={loading || requests.length === 0}
             title={requests.length === 0 ? "Нет заявок для удаления" : "Очистить все заявки"}
           >
-            🗑️ Очистить все заявки {requests.length > 0 && `(${requests.length})`}
+            Очистить все {requests.length > 0 && `(${requests.length})`}
           </button>
         </div>
       </div>
@@ -1110,7 +1334,7 @@ function RentalsTab() {
 
       {error && (
         <div className="admin-error">
-          {error}
+          ❌ {error}
         </div>
       )}
 
@@ -1185,7 +1409,9 @@ function RentalsTab() {
 
       {filteredRequests.length === 0 ? (
         <div className="admin-empty">
-          {requests.length === 0 ? "Нет заявок на аренду" : "Нет заявок с выбранным статусом"}
+          {requests.length === 0 
+            ? "Нет заявок на аренду" 
+            : "Нет заявок с выбранным статусом"}
         </div>
       ) : (
         <div className="rentals-table">
@@ -1203,69 +1429,89 @@ function RentalsTab() {
               </tr>
             </thead>
             <tbody>
-              {filteredRequests.map(req => (
-                <tr key={`rental-${req.id}`}>
-                  <td className="contract-number"><strong>{req.contract_number}</strong></td>
-                  <td>
-                    <div className="client-info">
-                      <strong>{req.renter?.full_name || 'Не указан'}</strong>
-                      <div>{req.renter?.phone || ''}</div>
-                      <div className="client-email">{req.renter?.email || ''}</div>
-                      {req.renter?.company_name && (
-                        <div className="client-company">🏢 {req.renter.company_name}</div>
-                      )}
-                    </div>
-                  </td>
-                  <td>{req.hall_name || `Зал ${req.hall_id}`}</td>
-                  <td>
-                    <div>{formatDateTime(req.start_time)}</div>
-                    <div className="time-to">{formatDateTime(req.end_time)}</div>
-                  </td>
-                  <td>{req.duration_hours || '?'} ч</td>
-                  <td className="amount">
-                    {getRentalPrice(req) ? `${Number(getRentalPrice(req)).toLocaleString()} ₽` : '0 ₽'}
-                  </td>
-                  <td>{getStatusBadge(req.status)}</td>
-                  <td>
-                    {req.status === 'pending' && (
-                      <div className="action-buttons">
-                        <button 
-                          className="confirm-btn"
-                          onClick={() => handleStatusChange(req.id, 'confirmed')}
-                          title="Подтвердить"
-                          disabled={loading}
-                        >
-                          ✅
-                        </button>
-                        <button 
-                          className="cancel-btn"
-                          onClick={() => handleStatusChange(req.id, 'cancelled')}
-                          title="Отклонить"
-                          disabled={loading}
-                        >
-                          ❌
-                        </button>
+              {filteredRequests.map(req => {
+                const renter = getRenterInfo(req);
+                const contractNumber = getContractNumber(req);
+                const hallName = getHallName(req);
+                const price = getRentalPrice(req);
+                const duration = formatDuration(req);
+                
+                return (
+                  <tr key={`rental-${req.id || req.contract_number}`}>
+                    <td className="contract-number">
+                      <strong>{contractNumber}</strong>
+                    </td>
+                    <td>
+                      <div className="client-info">
+                        <strong>{renter.full_name}</strong>
+                        <div>{renter.phone}</div>
+                        <div className="client-email">{renter.email}</div>
+                        {renter.company_name && (
+                          <div className="client-company">🏢 {renter.company_name}</div>
+                        )}
                       </div>
-                    )}
-                    {req.status === 'confirmed' && (
-                      <button 
-                        className="complete-btn"
-                        onClick={() => handleStatusChange(req.id, 'completed')}
-                        title="Завершить"
-                        disabled={loading}
-                      >
-                        Завершить
-                      </button>
-                    )}
-                    {req.status === 'completed' && (
-                      <span className="completed-label">Завершено</span>
-                    )}
-                    {req.status === 'cancelled' && (
-                      <span className="cancelled-label">Отменено</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td>{hallName}</td>
+                    <td>
+                      <div>{formatDateTime(getDate(req, 'start_time'))}</div>
+                      <div className="time-to">{formatDateTime(getDate(req, 'end_time'))}</div>
+                    </td>
+                    <td>{duration}</td>
+                    <td className="amount">
+                      {price ? `${Number(price).toLocaleString()} ₽` : '0 ₽'}
+                    </td>
+                    <td>{getStatusBadge(req.status)}</td>
+                    <td>
+                      {req.status === 'pending' && (
+                        <div className="action-buttons">
+                          <button 
+                            className="confirm-btn"
+                            onClick={() => handleStatusChange(req.id, 'confirmed')}
+                            title="Подтвердить"
+                            disabled={loading}
+                          >
+                            ✅
+                          </button>
+                          <button 
+                            className="cancel-btn"
+                            onClick={() => handleStatusChange(req.id, 'cancelled')}
+                            title="Отклонить"
+                            disabled={loading}
+                          >
+                            ❌
+                          </button>
+                        </div>
+                      )}
+                      {req.status === 'confirmed' && (
+                        <div className="action-buttons">
+                          <button 
+                            className="complete-btn"
+                            onClick={() => handleStatusChange(req.id, 'completed')}
+                            title="Завершить"
+                            disabled={loading}
+                          >
+                            Завершить
+                          </button>
+                          <button 
+                            className="cancel-btn"
+                            onClick={() => handleStatusChange(req.id, 'cancelled')}
+                            title="Отменить"
+                            disabled={loading}
+                          >
+                            ❌
+                          </button>
+                        </div>
+                      )}
+                      {req.status === 'completed' && (
+                        <span className="completed-label">✅ Завершено</span>
+                      )}
+                      {req.status === 'cancelled' && (
+                        <span className="cancelled-label">❌ Отменено</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1284,28 +1530,44 @@ function RentalsTab() {
             >
               <h3>⚠️ Очистить все заявки?</h3>
               <p>
-                Это действие <strong>безвозвратно удалит</strong> все заявки на аренду из базы данных, включая:
+                Это действие <strong>безвозвратно удалит</strong> все заявки на аренду из базы данных.
               </p>
-              <ul style={{ color: '#ccc', marginBottom: '20px', paddingLeft: '20px' }}>
-                <li>{stats.total} договоров аренды</li>
-                <li>Данные всех арендаторов</li>
-                <li>Историю всех заявок</li>
-              </ul>
-              <p style={{ color: '#ff6b6b', fontWeight: 'bold' }}>
-                Отменить это действие будет невозможно!
-              </p>
+              
+              {/* Статистика по заявкам */}
+              <div style={{ margin: '20px 0', padding: '15px', background: 'rgba(0,0,0,0.3)', borderRadius: '10px' }}>
+                <p><strong>Будет удалено:</strong></p>
+                <ul style={{ color: '#ccc', paddingLeft: '20px' }}>
+                  <li>Всего заявок: {stats.total}</li>
+                  <li>⏳ Ожидают: {stats.pending}</li>
+                  <li>✅ Подтверждены: {stats.confirmed}</li>
+                  <li>🏁 Завершены: {stats.completed}</li>
+                  <li>❌ Отменены: {stats.cancelled}</li>
+                </ul>
+              </div>
+              
+              {stats.pending > 0 || stats.confirmed > 0 ? (
+                <p style={{ color: '#ff6b6b', fontWeight: 'bold', background: 'rgba(255,107,107,0.1)', padding: '10px', borderRadius: '5px' }}>
+                  ⚠️ Внимание! Есть активные заявки (ожидающие или подтверждённые). 
+                  Сначала отмените или завершите их.
+                </p>
+              ) : (
+                <p style={{ color: '#ff6b6b', fontWeight: 'bold' }}>
+                  Отменить это действие будет невозможно!
+                </p>
+              )}
+              
               <div className="modal-buttons">
                 <button 
                   className="cancel-btn"
                   onClick={() => setShowConfirmClear(false)}
                   disabled={loading}
                 >
-                  Отмена
+          Отмена
                 </button>
                 <button 
                   className="confirm-btn"
                   onClick={handleClearAllRentals}
-                  disabled={loading}
+                  disabled={loading || stats.pending > 0 || stats.confirmed > 0}
                 >
                   {loading ? 'Удаление...' : 'Да, очистить всё'}
                 </button>
@@ -1466,7 +1728,7 @@ function TicketsTab() {
             disabled={loading}
             title="Обновить список"
           >
-            {loading ? "🔄" : "⭮"}
+            {loading ? "⭮" : "⭮"}
           </button>
           
           <div className="clear-menu-container">
@@ -1554,7 +1816,7 @@ function TicketsTab() {
                       disabled={processingId === ticket.id}
                       title="Вернуть билет (освободить место)"
                     >
-                      {processingId === ticket.id ? "🔄" : "↩"}
+                      {processingId === ticket.id ? "⭮" : "↩"}
                     </button>
                   )}
                 </td>

@@ -201,10 +201,12 @@
 
 .buy-tickets-btn {
   margin-top: 15px;
-  padding: 10px 20px;
+  padding: 12px 24px;
   background: linear-gradient(135deg, #7b2cff, #c62828);
   border: none;
   border-radius: 30px;
+  font-size: 14px;
+  font-weight: 600;
   color: white;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -330,8 +332,6 @@
   font-size: 20px;
 }
 
-/* Добавьте в ProfileModal.css */
-
 .rentals-section h4 {
   margin: 20px 0 10px;
   color: #ffd700;
@@ -395,3 +395,116 @@
   font-weight: 500;
 }
 
+/* Стили для аренды */
+.rentals-section {
+  padding: 10px;
+}
+
+.rentals-section h4 {
+  color: #aaa;
+  margin-bottom: 15px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.rental-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rental-card.active {
+  border-left: 4px solid #4caf50;
+}
+
+.rental-card.pending {
+  border-left: 4px solid #ffc107;
+}
+
+.rental-card.cancelled {
+  border-left: 4px solid #f44336;
+  opacity: 0.7;
+}
+
+.rental-card.completed {
+  border-left: 4px solid #2196f3;
+}
+
+.rental-hall {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffd700;
+  margin-bottom: 10px;
+}
+
+.rental-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: #fff;
+}
+
+.rental-details span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rental-price {
+  font-weight: 600;
+  color: #4caf50;
+}
+
+.rental-status {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.rental-status.status-pending {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+.rental-status.status-confirmed {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.rental-status.status-completed {
+  background: rgba(33, 150, 243, 0.2);
+  color: #2196f3;
+}
+
+.rental-status.status-cancelled {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+}
+
+.rental-status.status-paid {
+  background: rgba(156, 39, 176, 0.2);
+  color: #9c27b0;
+}
+
+.rent-now-btn {
+  margin-top: 15px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #7b2cff, #c62828);
+  border: none;
+  border-radius: 30px;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+} 
+
+.rent-now-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(123, 44, 255, 0.4);
+}

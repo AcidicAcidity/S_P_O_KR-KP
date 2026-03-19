@@ -1,4 +1,3 @@
-// src/api/rentals.js
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 async function handleResponse(response) {
@@ -23,7 +22,6 @@ async function handleResponse(response) {
   return {};
 }
 
-// Создать заявку на аренду
 export async function createRental(rentalData) {
   console.log("📡 Отправка заявки на аренду:", rentalData);
   
@@ -38,28 +36,37 @@ export async function createRental(rentalData) {
   return handleResponse(res);
 }
 
-// Получить все заявки (для админа)
 export async function getRentalRequests() {
   console.log("📡 Загрузка заявок на аренду...");
   const res = await fetch(`${API_BASE_URL}/admin/rentals/`);
   return handleResponse(res);
 }
 
-// Получить заявки пользователя
-export async function getUserRentals(userId) {
-  console.log(`📡 Загрузка аренды пользователя ${userId}...`);
+export async function getUserRentals(renterId) {
+  console.log(`📡 Загрузка аренды для рентера ${renterId}...`);
   try {
-    const res = await fetch(`${API_BASE_URL}/rentals/user/${userId}`);
+    const res = await fetch(`${API_BASE_URL}/rentals/user/${renterId}`);
     const data = await handleResponse(res);
     console.log("📦 Данные аренды пользователя:", data);
     return data;
   } catch (error) {
     console.error("❌ Ошибка загрузки аренды пользователя:", error);
-    return []; // Возвращаем пустой массив в случае ошибки
+    return [];
   }
 }
 
-// Обновить статус заявки
+export async function getUserRentalsByUserId(userId) {
+  console.log(`📡 Загрузка аренды по user_id ${userId}...`);
+  try {
+    const res = await fetch(`${API_BASE_URL}/rentals/user-by-id/${userId}`);
+    const data = await handleResponse(res);
+    return data;
+  } catch (error) {
+    console.error("❌ Ошибка:", error);
+    return [];
+  }
+}
+
 export async function updateRentalStatus(id, status) {
   console.log(`📡 Обновление статуса заявки ${id} на ${status}...`);
   const res = await fetch(`${API_BASE_URL}/admin/rentals/${id}`, {
@@ -70,13 +77,11 @@ export async function updateRentalStatus(id, status) {
   return handleResponse(res);
 }
 
-// Получить конкретную заявку
 export async function getRentalById(id) {
   const res = await fetch(`${API_BASE_URL}/rentals/${id}`);
   return handleResponse(res);
 }
 
-// Отменить заявку (для клиента)
 export async function cancelRental(id) {
   const res = await fetch(`${API_BASE_URL}/rentals/${id}/cancel`, {
     method: "POST",

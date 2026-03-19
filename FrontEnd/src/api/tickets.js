@@ -1,4 +1,3 @@
-// src/api/tickets.js
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 async function handleResponse(response) {
@@ -18,6 +17,8 @@ async function handleResponse(response) {
 }
 
 export async function purchaseTicket({ sessionId, seatIds, userId, customerName, usedBonus = 0 }) {
+  console.log("📡 Покупка билетов:", { sessionId, seatIds, userId });
+  
   const res = await fetch(`${API_BASE_URL}/tickets/purchase`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

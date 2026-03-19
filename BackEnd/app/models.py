@@ -98,6 +98,7 @@ class TicketPurchase(BaseModel):
     customer_name: Optional[str] = None
     customer_email: Optional[str] = None
     customer_phone: Optional[str] = None
+    used_bonus: Optional[int] = 0
 
 class TicketResponse(BaseModel):
     id: int

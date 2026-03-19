@@ -32,7 +32,7 @@ const hallsData = [
     image: "../src/assets/zal3.jpg"
   },
   {
-    id: 3,
+    id: 4,
     name: "VIP зал",
     type: "VIP",
     capacity: 20,
@@ -95,6 +95,7 @@ export default function HallRental() {
 
     const base = selectedHall.pricePerHour * hours;
     const discountedBase = base * (1 - discount);
+    const discountAmount = base - discountedBase;
 
     const servicesTotal = services.reduce((acc, s) => {
       return acc + (s.perHour ? s.price * hours : s.price);
@@ -103,6 +104,7 @@ export default function HallRental() {
     return {
       base,
       discountedBase,
+      discountAmount,
       servicesTotal,
       total: Math.round(discountedBase + servicesTotal)
     };
@@ -120,7 +122,6 @@ export default function HallRental() {
     setMessage(null);
 
     try {
-      // Формируем дату и время
       const startDateTime = new Date(`${date}T${time}`);
       const endDateTime = new Date(startDateTime.getTime() + hours * 60 * 60 * 1000);
 
@@ -142,15 +143,24 @@ export default function HallRental() {
       
       const result = await createRental(rentalData);
       console.log("✅ Заявка создана:", result);
+      console.log("👤 ID арендатора:", result.renter_id);
       
-      // Сохраняем данные для оплаты
+      // Сохраняем renter_id в объект пользователя
+      if (user) {
+        const updatedUser = { ...user, renter_id: result.renter_id };
+        // Обновляем в контексте и localStorage
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        // Если есть функция обновления пользователя в контексте, вызовите её
+        // updateUser(updatedUser);
+      }
+      
       setPendingRental({
         id: result.id,
         amount: priceBreakdown.total,
-        contract_number: result.contract_number
+        contract_number: result.contract_number,
+        renter_id: result.renter_id
       });
       
-      // Открываем окно оплаты
       setIsPaymentOpen(true);
 
     } catch (err) {
@@ -348,12 +358,46 @@ export default function HallRental() {
                 </div>
               </div>
 
-              {/* Итого */}
+              {/* Итого с детализацией */}
               {priceBreakdown && (
                 <div className="total-box">
-                  <p>Аренда: {priceBreakdown.discountedBase} ₽</p>
-                  <p>Услуги: {priceBreakdown.servicesTotal} ₽</p>
-                  <h3>Итого к оплате: {priceBreakdown.total} ₽</h3>
+                  <p className="total-line">
+                    <span>Аренда зала ({hours} ч × {selectedHall.pricePerHour} ₽):</span>
+                    <span>{priceBreakdown.base.toLocaleString()} ₽</span>
+                  </p>
+                  
+                  {discount > 0 && (
+                    <p className="total-line discount">
+                      <span>Скидка {discount * 100}%:</span>
+                      <span>-{priceBreakdown.discountAmount.toLocaleString()} ₽</span>
+                    </p>
+                  )}
+                  
+                  <p className="total-line">
+                    <span>Аренда со скидкой:</span>
+                    <span>{priceBreakdown.discountedBase.toLocaleString()} ₽</span>
+                  </p>
+                  
+                  {services.length > 0 && (
+                    <>
+                      <p className="total-line">
+                        <span>Услуги:</span>
+                        <span>{priceBreakdown.servicesTotal.toLocaleString()} ₽</span>
+                      </p>
+                      <div className="services-details">
+                        {services.map(s => (
+                          <p key={s.id} className="service-detail">
+                            {s.name}: {s.perHour ? `${s.price}₽ × ${hours}ч = ${(s.price * hours).toLocaleString()}₽` : `${s.price}₽`}
+                          </p>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  
+                  <div className="total-final">
+                    <span>ИТОГО к оплате:</span>
+                    <span>{priceBreakdown.total.toLocaleString()} ₽</span>
+                  </div>
                 </div>
               )}
 

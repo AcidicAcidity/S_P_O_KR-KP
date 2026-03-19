@@ -28,13 +28,13 @@ async function handleResponse(response) {
 // ==================== ФИЛЬМЫ ====================
 export async function getAllMovies() {
   console.log("📡 Загрузка фильмов...");
-  const res = await fetch(`${API_BASE_URL}/admin/movies/`);
+  const res = await fetch(`${API_BASE_URL}/admin/movies`);
   return handleResponse(res);
 }
 
 export async function createMovie(movieData) {
   console.log("📡 Создание фильма:", movieData);
-  const res = await fetch(`${API_BASE_URL}/admin/movies/`, {
+  const res = await fetch(`${API_BASE_URL}/admin/movies`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(movieData),
@@ -63,13 +63,13 @@ export async function deleteMovie(id) {
 // ==================== СЕАНСЫ ====================
 export async function getSessions() {
   console.log("📡 Загрузка сеансов...");
-  const res = await fetch(`${API_BASE_URL}/admin/sessions/`);
+  const res = await fetch(`${API_BASE_URL}/admin/sessions`);
   return handleResponse(res);
 }
 
 export async function createSession(sessionData) {
   console.log("📡 Создание сеанса:", sessionData);
-  const res = await fetch(`${API_BASE_URL}/admin/sessions/`, {
+  const res = await fetch(`${API_BASE_URL}/admin/sessions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(sessionData),
@@ -87,11 +87,13 @@ export async function deleteSession(id) {
 
 // ==================== ЗАЛЫ ====================
 export async function getHalls() {
-  const res = await fetch(`${API_BASE_URL}/admin/halls`);  // ← ИСПРАВЛЕНО
+  console.log("📡 Загрузка залов...");
+  const res = await fetch(`${API_BASE_URL}/admin/halls`);
   return handleResponse(res);
 }
 
 export async function createHall(hallData) {
+  console.log("📡 Создание зала:", hallData);
   const res = await fetch(`${API_BASE_URL}/admin/halls`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -101,6 +103,7 @@ export async function createHall(hallData) {
 }
 
 export async function deleteHall(id) {
+  console.log(`📡 Удаление зала ${id}`);
   const res = await fetch(`${API_BASE_URL}/admin/halls/${id}`, {
     method: "DELETE"
   });
@@ -110,21 +113,21 @@ export async function deleteHall(id) {
 // ==================== ПОЛЬЗОВАТЕЛИ ====================
 export async function getUsers() {
   console.log("📡 Загрузка пользователей...");
-  const res = await fetch(`${API_BASE_URL}/admin/users/`);
+  const res = await fetch(`${API_BASE_URL}/admin/users`);
   return handleResponse(res);
 }
 
 // ==================== БИЛЕТЫ ====================
 export async function getTickets() {
   console.log("📡 Загрузка билетов...");
-  const res = await fetch(`${API_BASE_URL}/admin/tickets/`);
+  const res = await fetch(`${API_BASE_URL}/admin/tickets`);
   return handleResponse(res);
 }
 
 export async function refundTicket(ticketId) {
   console.log(`📡 Возврат билета ${ticketId}`);
-  const res = await fetch(`${API_BASE_URL}/admin/tickets/${ticketId}/refund`, {
-    method: "POST",
+  const res = await fetch(`${API_BASE_URL}/admin/tickets/${ticketId}`, {
+    method: "DELETE",
   });
   return handleResponse(res);
 }
@@ -148,13 +151,23 @@ export async function clearAllTickets() {
 // ==================== АРЕНДА ЗАЛОВ ====================
 export async function getAllRentals() {
   console.log("📡 Загрузка всех заявок на аренду...");
-  const res = await fetch(`${API_BASE_URL}/admin/rentals/`);
+  const res = await fetch(`${API_BASE_URL}/admin/rentals`);
+  return handleResponse(res);
+}
+
+export async function updateRentalStatus(rentalId, status) {
+  console.log(`📡 Обновление статуса заявки ${rentalId} на ${status}...`);
+  const res = await fetch(`${API_BASE_URL}/admin/rentals/${rentalId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
   return handleResponse(res);
 }
 
 export async function clearAllRentals() {
   console.log("📡 Очистка всех заявок на аренду...");
-  const res = await fetch(`${API_BASE_URL}/admin/rentals/clear-all`, {
+  const res = await fetch(`${API_BASE_URL}/admin/clear-all`, {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
@@ -162,3 +175,12 @@ export async function clearAllRentals() {
   });
   return handleResponse(res);
 }
+
+export async function deleteRental(rentalId) {
+  console.log(`📡 Удаление заявки ${rentalId}...`);
+  const res = await fetch(`${API_BASE_URL}/admin/rentals/${rentalId}`, {
+    method: "DELETE",
+  });
+  return handleResponse(res);
+}
+

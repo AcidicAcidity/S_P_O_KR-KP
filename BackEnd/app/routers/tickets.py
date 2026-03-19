@@ -3,8 +3,8 @@ from app.database import get_db_connection
 from app.models import TicketPurchase, TicketResponse
 import logging
 from datetime import datetime
+from typing import List
 
-# СОЗДАЕМ РОУТЕР
 router = APIRouter(prefix="/tickets", tags=["Билеты"])
 logger = logging.getLogger(__name__)
 
@@ -12,10 +12,6 @@ logger = logging.getLogger(__name__)
 async def purchase_tickets(purchase: TicketPurchase):
     """
     Купить билеты (несколько мест сразу)
-    Учитывает:
-    - Проверку бронирований
-    - Списание бонусов (если указаны)
-    - Начисление бонусов (только для зарегистрированных)
     """
     conn = get_db_connection()
     if not conn:
@@ -28,50 +24,12 @@ async def purchase_tickets(purchase: TicketPurchase):
         session_id = purchase.session_id
         seat_ids = purchase.seat_ids
 
-        # Проверяем, что все места свободны (не куплены)
-        placeholders = ','.join(['%s'] * len(seat_ids))
-        cursor.execute(f"""
-            SELECT seat_id FROM tickets
-            WHERE session_id = %s
-                AND seat_id IN ({placeholders})
-                AND status != 'Возврат'
-        """, [session_id] + seat_ids)
+        print(f"\n🔥 ПОКУПКА БИЛЕТОВ:")
+        print(f"  Сеанс: {session_id}")
+        print(f"  Места: {seat_ids}")
+        print(f"  Пользователь: {purchase.user_id}")
 
-        occupied = cursor.fetchall()
-        if occupied:
-            occupied_ids = [o[0] for o in occupied]
-            raise HTTPException(
-                status_code=400,
-                detail=f"Места {occupied_ids} уже куплены"
-            )
-
-        # Проверяем, что места не забронированы (если бронь активна и принадлежит другому)
-        # Если пользователь авторизован, можно разрешить покупать свои брони
-        if purchase.user_id:
-            cursor.execute(f"""
-                SELECT seat_id FROM bookings
-                WHERE session_id = %s
-                    AND seat_id IN ({placeholders})
-                    AND status = 'active'
-                    AND (user_id != %s OR user_id IS NULL)
-            """, [session_id] + seat_ids + [purchase.user_id])
-        else:
-            cursor.execute(f"""
-                SELECT seat_id FROM bookings
-                WHERE session_id = %s
-                    AND seat_id IN ({placeholders})
-                    AND status = 'active'
-            """, [session_id] + seat_ids)
-
-        booked = cursor.fetchall()
-        if booked:
-            booked_ids = [b[0] for b in booked]
-            raise HTTPException(
-                status_code=400,
-                detail=f"Места {booked_ids} забронированы другим пользователем"
-            )
-
-        # Получаем цену и проверяем наличие мест
+        # 1. Получаем информацию о сеансе
         cursor.execute("""
             SELECT price, available_seats, movie_id, hall_id
             FROM sessions WHERE id = %s
@@ -82,35 +40,87 @@ async def purchase_tickets(purchase: TicketPurchase):
             raise HTTPException(status_code=404, detail="Сеанс не найден")
 
         price = float(session[0])
-
-        # Расчёт итоговой цены с учётом бонусов
-        final_price = price * len(seat_ids)
+        total_price = price * len(seat_ids)
+        final_price = total_price
         used_bonus = 0
 
-        # Если пользователь хочет использовать бонусы
-        if purchase.use_bonus and purchase.user_id:
+        # 2. Проверяем каждое место отдельно
+        unavailable_seats = []
+        booked_by_others = []
+        
+        for seat_id in seat_ids:
+            # Проверяем в таблице tickets (купленные билеты)
             cursor.execute("""
-                SELECT bonus_points FROM customers
-                WHERE id = %s
-            """, (purchase.user_id,))
-            user_bonus = cursor.fetchone()
+                SELECT id FROM tickets
+                WHERE session_id = %s AND seat_id = %s AND status != 'Возврат'
+            """, (session_id, seat_id))
             
-            if user_bonus and user_bonus[0] > 0:
-                max_discount = final_price * 0.3  # Максимум 30% оплаты бонусами
-                available_bonus_rub = user_bonus[0]  # 1 бонус = 1 рубль
-                
-                used_bonus = min(int(max_discount), available_bonus_rub, final_price)
-                if used_bonus > 0:
-                    final_price -= used_bonus
-                    
-                    # Списание бонусов
-                    cursor.execute("""
-                        UPDATE customers
-                        SET bonus_points = bonus_points - %s
-                        WHERE id = %s
-                    """, (used_bonus, purchase.user_id))
+            if cursor.fetchone():
+                unavailable_seats.append(seat_id)
+                continue
+            
+            # Проверяем в таблице bookings (активные брони)
+            if purchase.user_id:
+                # Проверяем, не забронировано ли место другим пользователем
+                cursor.execute("""
+                    SELECT id FROM bookings
+                    WHERE session_id = %s AND seat_id = %s 
+                    AND status = 'active' AND user_id != %s
+                """, (session_id, seat_id, purchase.user_id))
+            else:
+                # Для неавторизованных - проверяем любые активные брони
+                cursor.execute("""
+                    SELECT id FROM bookings
+                    WHERE session_id = %s AND seat_id = %s AND status = 'active'
+                """, (session_id, seat_id))
+            
+            if cursor.fetchone():
+                booked_by_others.append(seat_id)
+                continue
+            
+            # Проверяем, нет ли уже записи со статусом 'purchased' в bookings
+            cursor.execute("""
+                SELECT id FROM bookings
+                WHERE session_id = %s AND seat_id = %s AND status = 'purchased'
+            """, (session_id, seat_id))
+            
+            if cursor.fetchone():
+                unavailable_seats.append(seat_id)
 
-        # Создаем билеты для каждого места
+        # Если есть недоступные места
+        if unavailable_seats:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Места {unavailable_seats} уже куплены"
+            )
+        
+        if booked_by_others:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Места {booked_by_others} забронированы другим пользователем"
+            )
+
+        print(f"  ✅ Все места доступны для покупки")
+
+        # 3. Обработка бонусов
+        if hasattr(purchase, 'used_bonus') and purchase.used_bonus and purchase.used_bonus > 0 and purchase.user_id:
+            used_bonus = purchase.used_bonus
+            final_price = total_price - used_bonus
+            
+            if final_price < 0:
+                final_price = 0
+                used_bonus = total_price
+            
+            # Списание бонусов
+            cursor.execute("""
+                UPDATE customers
+                SET bonus_points = bonus_points - %s
+                WHERE id = %s
+            """, (used_bonus, purchase.user_id))
+            
+            print(f"  🎟 Списано бонусов: {used_bonus}")
+
+        # 4. Создаем билеты для каждого места
         tickets_created = []
         for seat_id in seat_ids:
             cursor.execute("""
@@ -122,33 +132,38 @@ async def purchase_tickets(purchase: TicketPurchase):
             ticket_id = cursor.fetchone()[0]
             tickets_created.append(ticket_id)
 
-            # Удаляем бронь, если была
+            # 5. Обновляем бронь (если была)
             cursor.execute("""
                 UPDATE bookings
                 SET status = 'purchased'
                 WHERE session_id = %s AND seat_id = %s AND status = 'active'
             """, (purchase.session_id, seat_id))
 
-        # Обновляем количество доступных мест
+        print(f"  🎫 Создано билетов: {len(tickets_created)}")
+
+        # 6. Обновляем количество доступных мест
         cursor.execute("""
             UPDATE sessions
             SET available_seats = available_seats - %s
             WHERE id = %s
         """, (len(seat_ids), session_id))
 
-        # Начисляем бонусы (10% от потраченной суммы)
+        # 7. Начисляем бонусы (10% от потраченной суммы)
+        bonus_earned = 0
         if purchase.user_id:
-            bonus_earned = int(price * len(seat_ids) * 0.1)  # 10% бонусами
+            bonus_earned = int(total_price * 0.1)
             if bonus_earned > 0:
                 cursor.execute("""
                     UPDATE customers
                     SET bonus_points = bonus_points + %s
                     WHERE id = %s
                 """, (bonus_earned, purchase.user_id))
+                print(f"  ⭐ Начислено бонусов: {bonus_earned}")
 
-        # Получаем информацию о купленных билетах
-        placeholders = ','.join(['%s'] * len(tickets_created))
-        cursor.execute(f"""
+        conn.commit()
+
+        # 8. Получаем информацию о первом билете для ответа
+        cursor.execute("""
             SELECT
                 t.id,
                 t.seat_id,
@@ -163,32 +178,29 @@ async def purchase_tickets(purchase: TicketPurchase):
             JOIN movies m ON s.movie_id = m.id
             JOIN halls h ON s.hall_id = h.id
             JOIN seats ON t.seat_id = seats.id
-            WHERE t.id IN ({placeholders})
-        """, tickets_created)
+            WHERE t.id = %s
+        """, (tickets_created[0],))
 
-        tickets_info = cursor.fetchall()
+        first_ticket = cursor.fetchone()
 
-        conn.commit()
+        # 9. Получаем обновлённый баланс бонусов
+        bonus_balance = None
+        if purchase.user_id:
+            cursor.execute("SELECT bonus_points FROM customers WHERE id = %s", (purchase.user_id,))
+            balance = cursor.fetchone()
+            bonus_balance = balance[0] if balance else 0
 
-        # Формируем ответ
-        if tickets_info:
-            first_ticket = tickets_info[0]
-            
-            # Получаем обновлённый баланс бонусов
-            bonus_balance = None
-            if purchase.user_id:
-                cursor.execute("SELECT bonus_points FROM customers WHERE id = %s", (purchase.user_id,))
-                balance = cursor.fetchone()
-                bonus_balance = balance[0] if balance else 0
+        print(f"  ✅ Покупка завершена успешно!\n")
 
+        if first_ticket:
             return TicketResponse(
                 id=tickets_created[0],
                 session_id=session_id,
                 seat_ids=seat_ids,
                 total_price=final_price,
-                original_price=price * len(seat_ids),
+                original_price=total_price,
                 used_bonus=used_bonus,
-                bonus_earned=bonus_earned if purchase.user_id else 0,
+                bonus_earned=bonus_earned,
                 bonus_balance=bonus_balance,
                 purchase_date=datetime.now(),
                 status="Куплен",
@@ -207,7 +219,7 @@ async def purchase_tickets(purchase: TicketPurchase):
         raise
     except Exception as e:
         conn.rollback()
-        logger.error(f"Ошибка: {e}")
+        logger.error(f"❌ Ошибка: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.autocommit = True
@@ -226,9 +238,17 @@ async def get_user_tickets(user_id: int):
         cursor = conn.cursor()
         cursor.execute("""
             SELECT 
-                t.id, t.session_id, t.seat_id, t.price, t.purchase_date, t.status,
-                m.title as movie_title, s.start_time as session_time,
-                h.name as hall_name, seats.row_number, seats.seat_number
+                t.id, 
+                t.session_id, 
+                t.seat_id, 
+                t.price, 
+                t.purchase_date, 
+                t.status,
+                m.title as movie_title, 
+                s.start_time as session_time,
+                h.name as hall_name, 
+                seats.row_number, 
+                seats.seat_number
             FROM tickets t
             JOIN sessions s ON t.session_id = s.id
             JOIN movies m ON s.movie_id = m.id
@@ -245,7 +265,7 @@ async def get_user_tickets(user_id: int):
                 "id": t[0],
                 "session_id": t[1],
                 "seat_id": t[2],
-                "price": float(t[3]),
+                "price": float(t[3]) if t[3] else 0,
                 "purchase_date": t[4],
                 "status": t[5],
                 "movie_title": t[6],
@@ -255,5 +275,8 @@ async def get_user_tickets(user_id: int):
                 "seat": t[10]
             })
         return result
+    except Exception as e:
+        logger.error(f"❌ Ошибка: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()

@@ -8,8 +8,8 @@ import "./ProfileModal.css";
 export default function ProfileModal({ isOpen, onClose }) {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("active");
-  const [tickets, setTickets] = useState([]);
-  const [rentals, setRentals] = useState({ active: [], history: [] });
+  const [tickets, setTickets] = useState({ all: [], active: [], history: [] });
+  const [rentals, setRentals] = useState({ all: [], active: [], history: [] });
   const [bonus, setBonus] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -24,24 +24,53 @@ export default function ProfileModal({ isOpen, onClose }) {
     setLoading(true);
     setError(null);
     try {
+      console.log("📡 Загрузка данных для пользователя:", user);
+      
+      // ВАЖНО: ID для аренды - это renter_id из таблицы renters
+      // Он может быть сохранен в user.renter_id или нужно получить отдельно
+      const renterId = user.renter_id || user.id;
+      console.log("👤 ID пользователя:", user.id);
+      console.log("👤 ID арендатора (renter_id):", renterId);
+      
       const [ticketsData, bonusData, rentalsData] = await Promise.all([
-        getUserTickets(user.id),
-        getUserBonus(user.id),
-        getUserRentals(user.id)
+        getUserTickets(user.id).catch(err => {
+          console.error("Ошибка загрузки билетов:", err);
+          return [];
+        }),
+        getUserBonus(user.id).catch(err => {
+          console.error("Ошибка загрузки бонусов:", err);
+          return { bonus_points: 0 };
+        }),
+        getUserRentals(renterId).catch(err => {
+          console.error("Ошибка загрузки аренды:", err);
+          return [];
+        })
       ]);
+
+      console.log("📦 Билеты:", ticketsData);
+      console.log("📦 Бонусы:", bonusData);
+      console.log("📦 Аренда:", rentalsData);
 
       // Обработка билетов
       const now = new Date();
-      const allTickets = ticketsData || [];
+      const allTickets = Array.isArray(ticketsData) ? ticketsData : [];
 
       const activeTickets = allTickets.filter(t => {
-        const sessionTime = new Date(t.session_time);
-        return sessionTime > now && t.status !== 'Возврат';
+        try {
+          const sessionTime = new Date(t.session_time);
+          return sessionTime > now && t.status !== 'Возврат';
+        } catch {
+          return false;
+        }
       });
 
       const historyTickets = allTickets.filter(t => {
-        const sessionTime = new Date(t.session_time);
-        return sessionTime <= now || t.status === 'Возврат';
+        try {
+          const sessionTime = new Date(t.session_time);
+          return sessionTime <= now || t.status === 'Возврат';
+        } catch {
+          return true;
+        }
       });
 
       setTickets({
@@ -51,17 +80,38 @@ export default function ProfileModal({ isOpen, onClose }) {
       });
 
       // Обработка аренды
-      const allRentals = rentalsData || [];
+      const allRentals = Array.isArray(rentalsData) ? rentalsData : [];
+      console.log("📊 Всего записей аренды:", allRentals.length);
 
       const activeRentals = allRentals.filter(r => {
-        const endTime = new Date(r.end_time);
-        return endTime > now && r.status !== 'cancelled' && r.status !== 'completed';
+        try {
+          const endTime = new Date(r.end_time);
+          const now = new Date();
+          const isActive = endTime > now && 
+                          r.status !== 'cancelled' && 
+                          r.status !== 'completed' &&
+                          r.status !== 'paid';
+          return isActive;
+        } catch {
+          return false;
+        }
       });
 
       const historyRentals = allRentals.filter(r => {
-        const endTime = new Date(r.end_time);
-        return endTime <= now || r.status === 'cancelled' || r.status === 'completed';
+        try {
+          const endTime = new Date(r.end_time);
+          const now = new Date();
+          return endTime <= now || 
+                 r.status === 'cancelled' || 
+                 r.status === 'completed' ||
+                 r.status === 'paid';
+        } catch {
+          return true;
+        }
       });
+
+      console.log("✅ Активные аренды:", activeRentals.length);
+      console.log("📜 История аренды:", historyRentals.length);
 
       setRentals({
         all: allRentals,
@@ -71,6 +121,7 @@ export default function ProfileModal({ isOpen, onClose }) {
 
       setBonus(bonusData?.bonus_points || 0);
     } catch (err) {
+      console.error("❌ Ошибка загрузки:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -83,23 +134,40 @@ export default function ProfileModal({ isOpen, onClose }) {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!dateString) return "—";
+    try {
+      return new Date(dateString).toLocaleString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return dateString;
+    }
   };
 
-  const formatShortDate = (dateString) => {
-    return new Date(dateString).toLocaleString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const getStatusText = (status) => {
+    switch(status) {
+      case 'pending': return '⏳ Ожидает оплаты';
+      case 'confirmed': return '✅ Подтверждено';
+      case 'completed': return '✅ Завершено';
+      case 'cancelled': return '❌ Отменено';
+      case 'paid': return '💳 Оплачено';
+      default: return status || '—';
+    }
+  };
+
+  const getStatusClass = (status) => {
+    switch(status) {
+      case 'pending': return 'status-pending';
+      case 'confirmed': return 'status-confirmed';
+      case 'completed': return 'status-completed';
+      case 'cancelled': return 'status-cancelled';
+      case 'paid': return 'status-paid';
+      default: return '';
+    }
   };
 
   if (!user) return null;
@@ -125,6 +193,11 @@ export default function ProfileModal({ isOpen, onClose }) {
               <div className="profile-info">
                 <h3>{user.name || 'Пользователь'}</h3>
                 <p>{user.email}</p>
+                {user.renter_id && (
+                  <small style={{ color: '#aaa', fontSize: '12px' }}>
+                    ID арендатора: {user.renter_id}
+                  </small>
+                )}
               </div>
             </div>
 
@@ -138,19 +211,19 @@ export default function ProfileModal({ isOpen, onClose }) {
                 className={`tab-btn ${activeTab === 'active' ? 'active' : ''}`}
                 onClick={() => setActiveTab('active')}
               >
-                Активные
+                Билеты ({tickets.active.length})
               </button>
               <button
                 className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
                 onClick={() => setActiveTab('history')}
               >
-                История
+                История ({tickets.history.length})
               </button>
               <button
                 className={`tab-btn ${activeTab === 'rentals' ? 'active' : ''}`}
                 onClick={() => setActiveTab('rentals')}
               >
-                Аренда
+                Аренда ({rentals.all.length})
               </button>
             </div>
 
@@ -208,45 +281,58 @@ export default function ProfileModal({ isOpen, onClose }) {
                 )
               ) : (
                 <div className="rentals-section">
-                  <h4>Текущая аренда</h4>
-                  {rentals.active.length > 0 ? (
-                    rentals.active.map(rental => (
-                      <div key={rental.id} className="rental-card active">
-                        <div className="rental-hall">{rental.hall_name || `Зал ${rental.hall_id}`}</div>
-                        <div className="rental-details">
-                          <span>📅 {formatShortDate(rental.start_time)} - {formatShortDate(rental.end_time)}</span>
-                          <span>⏱️ {rental.duration_hours || '?'} ч</span>
-                          <span>💰 {rental.total_price || rental.amount}₽</span>
-                          <span className={`status-${rental.status}`}>
-                            {rental.status === 'confirmed' ? '✅ Подтверждено' :
-                             rental.status === 'pending' ? '⏳ Ожидает оплаты' :
-                             rental.status === 'paid' ? '💳 Оплачено' : '⏳ Ожидает'}
-                          </span>
+                  {/* Активная аренда */}
+                  {rentals.active.length > 0 && (
+                    <>
+                      <h4>Текущая аренда</h4>
+                      {rentals.active.map(rental => (
+                        <div key={rental.id} className="rental-card active">
+                          <div className="rental-hall">{rental.hall_name || `Зал ${rental.hall_id}`}</div>
+                          <div className="rental-details">
+                            <span>📅 {formatDate(rental.start_time)} - {formatDate(rental.end_time)}</span>
+                            <span>⏱️ {rental.duration_hours || '?'} ч</span>
+                            <span className="rental-price">💰 {rental.total_price?.toLocaleString()}₽</span>
+                            <span className={`rental-status ${getStatusClass(rental.status)}`}>
+                              {getStatusText(rental.status)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="profile-empty">Нет активной аренды</p>
+                      ))}
+                    </>
                   )}
 
-                  <h4>История аренды</h4>
-                  {rentals.history.length > 0 ? (
-                    rentals.history.map(rental => (
-                      <div key={rental.id} className={`rental-card ${rental.status}`}>
-                        <div className="rental-hall">{rental.hall_name || `Зал ${rental.hall_id}`}</div>
-                        <div className="rental-details">
-                          <span>📅 {formatShortDate(rental.start_time)}</span>
-                          <span>💰 {rental.total_price || rental.amount}₽</span>
-                          <span className={`status-${rental.status}`}>
-                            {rental.status === 'completed' ? '✅ Завершено' :
-                             rental.status === 'cancelled' ? '❌ Отменено' :
-                             rental.status === 'paid' ? '💳 Оплачено' : rental.status}
-                          </span>
+                  {/* История аренды */}
+                  {rentals.history.length > 0 && (
+                    <>
+                      <h4 style={{ marginTop: rentals.active.length > 0 ? '30px' : '0' }}>
+                        История аренды
+                      </h4>
+                      {rentals.history.map(rental => (
+                        <div key={rental.id} className={`rental-card ${rental.status}`}>
+                          <div className="rental-hall">{rental.hall_name || `Зал ${rental.hall_id}`}</div>
+                          <div className="rental-details">
+                            <span>📅 {formatDate(rental.start_time)}</span>
+                            <span className="rental-price">💰 {rental.total_price?.toLocaleString()}₽</span>
+                            <span className={`rental-status ${getStatusClass(rental.status)}`}>
+                              {getStatusText(rental.status)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="profile-empty">История аренды пуста</p>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Если нет ни активной, ни исторической аренды */}
+                  {rentals.active.length === 0 && rentals.history.length === 0 && (
+                    <div className="profile-empty">
+                      <p>У вас пока нет аренды залов</p>
+                      <button onClick={() => {
+                        onClose();
+                        window.location.href = '/hall-rental';
+                      }} className="rent-now-btn">
+                        Арендовать зал
+                      </button>
+                    </div>
                   )}
                 </div>
               )}

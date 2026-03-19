@@ -72,6 +72,12 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("token");
   };
 
+  // ✅ НОВАЯ ФУНКЦИЯ: обновление данных пользователя
+  const updateUser = (updatedUserData) => {
+    setUser(updatedUserData);
+    localStorage.setItem("user", JSON.stringify(updatedUserData));
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -80,8 +86,9 @@ export const AuthProvider = ({ children }) => {
       login, 
       register, 
       logout,
+      updateUser,           // ← ДОБАВЛЕНО
       isAuthenticated: !!user,
-      isAdmin: user?.isAdmin || false  // Добавляем isAdmin
+      isAdmin: user?.isAdmin || false
     }}>
       {children}
     </AuthContext.Provider>
