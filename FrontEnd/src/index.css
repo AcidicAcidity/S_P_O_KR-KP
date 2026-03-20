@@ -1203,11 +1203,11 @@ body {
   .trailer-modal {
     width: 95%;
   }
-  
+
   .modal-header h3 {
     font-size: 18px;
   }
-  
+
   .modal-close {
     font-size: 28px;
   }
@@ -1217,7 +1217,7 @@ body {
   .modal-header {
     padding: 15px 20px;
   }
-  
+
   .modal-header h3 {
     font-size: 16px;
   }
@@ -1467,16 +1467,18 @@ input, select {
   font-weight: 600;
   cursor: pointer;
   transition: 0.3s ease;
+  color: white;
 }
 
 .submit-btn:hover:not(:disabled) {
   transform: translateY(-3px);
   box-shadow: 0 15px 35px rgba(123,44,255,0.4);
+  color: white;
 }
 
 .submit-btn:disabled {
   opacity: 0.4;
-  color: white;
+  color: grey;
 }
 
 /* About Page */
@@ -1845,20 +1847,20 @@ input, select {
   .about-hero h1 {
     font-size: 42px;
   }
-  
+
   .mission-text {
     font-size: 22px;
     padding-left: 20px;
   }
-  
+
   .quote-mark {
     font-size: 80px;
   }
-  
+
   .contact-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .achievement-item {
     flex-direction: column;
     gap: 10px;
@@ -1869,11 +1871,11 @@ input, select {
   .about-hero h1 {
     font-size: 36px;
   }
-  
+
   .advantages-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .team-grid {
     grid-template-columns: 1fr;
   }
@@ -1965,7 +1967,7 @@ input, select {
     gap: 12px;
     font-size: 14px;
   }
-  
+
   .contact-item svg {
     width: 20px;
     height: 20px;
@@ -2279,7 +2281,7 @@ input, select {
     width: 100%;
     margin-bottom: 20px;
   }
-  
+
   .session-switcher button {
     display: inline-flex;
     width: auto;
@@ -2442,14 +2444,14 @@ input, select {
     margin: 20px 0;
     max-width: none;
   }
-  
+
   .sessions-list {
     max-height: none;
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
   }
-  
+
   .session-item {
     width: calc(50% - 4px);
     margin-bottom: 0;
